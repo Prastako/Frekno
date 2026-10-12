@@ -201,3 +201,67 @@ class TestScreenCandidates:
         for v in pairs[0].values():
             if isinstance(v, float):
                 assert not np.isnan(v)
+
+
+def test_pairs_follow_loudness_order_behind_a_wall(flat_dem, tr):
+    """When terrain changes loudness order, pair rows carry data from the right receptor."""
+    from pipeline.acoustics import air_absorption_db_per_km
+
+    dem = np.full((3000, 3000), 250.0, dtype=np.float32)
+    dem[1475:1480, :] = 330.0
+
+    cfg = {
+        "temp_c": 10,
+        "humidity_percent": 70,
+        "pressure_kpa": 101.325,
+        "ref_class": "medium",
+        "ref_character": "very_bass_heavy",
+        "radius_m": 10000,
+        "sector_deg": 5,
+        "rings_m": [0, 1000, 2000, 4000, 7000, 10000],
+        "source_h": 2,
+        "receptor_h": 4,
+        "n_points": 200,
+        "keep_per_type": 20,
+    }
+
+    candidates, pairs = screen_candidates(
+        dem, tr,
+        [15000], [15000],
+        [15000, 16000, 14000],
+        [15500, 15000, 15000],
+        ["home"] * 3,
+        ["north", "east", "west"],
+        cfg,
+    )
+
+    # The last pair row is "north"
+    assert pairs[-1]["receptor_id"] == "north"
+
+    # For every pair row, (rx, ry) equals the coordinates of its receptor_id
+    coord_map = {
+        "north": (15000.0, 15500.0),
+        "east": (16000.0, 15000.0),
+        "west": (14000.0, 15000.0),
+    }
+    for p in pairs:
+        expected_rx, expected_ry = coord_map[p["receptor_id"]]
+        assert p["rx"] == pytest.approx(expected_rx, abs=1e-6)
+        assert p["ry"] == pytest.approx(expected_ry, abs=1e-6)
+        assert p["dist_m"] == pytest.approx(
+            np.hypot(p["rx"] - 15000, p["ry"] - 15000), abs=1e-6
+        )
+
+    # With keep_per_type=1 and only the first two receptors, the pair row is "east"
+    candidates2, pairs2 = screen_candidates(
+        dem, tr,
+        [15000], [15000],
+        [15000, 16000],
+        [15500, 15000],
+        ["home", "home"],
+        ["north", "east"],
+        {**cfg, "keep_per_type": 1},
+    )
+    assert len(pairs2) == 1
+    assert pairs2[0]["receptor_id"] == "east"
+    assert pairs2[0]["rx"] == pytest.approx(16000.0, abs=1e-6)
