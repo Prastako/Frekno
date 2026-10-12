@@ -206,20 +206,20 @@ def screen_candidates(dem, transform, cand_x, cand_y,
             k_dist = np.hypot(k_rx - cx, k_ry - cy)
             k_bearing = bearing_deg(cx, cy, k_rx, k_ry)
 
-            for rank, k_idx in enumerate(kept, start=1):
+            for j, k_idx in enumerate(kept):
                 pair_row = {
                     "candidate_id": int(i),
                     "receptor_type": t,
-                    "rank": int(rank),
+                    "rank": j + 1,
                     "receptor_id": str(t_rid[k_idx]),
-                    "rx": float(k_rx[k_idx]),
-                    "ry": float(k_ry[k_idx]),
-                    "dist_m": float(k_dist[k_idx]),
-                    "bearing_deg": float(k_bearing[k_idx]),
+                    "rx": float(k_rx[j]),
+                    "ry": float(k_ry[j]),
+                    "dist_m": float(k_dist[j]),
+                    "bearing_deg": float(k_bearing[j]),
                 }
                 for b, bk in enumerate(BAND_KEYS):
-                    pair_row[bk] = float(k_att[k_idx, b])
-                pair_row["ref_level_dba"] = float(k_dba[k_idx])
+                    pair_row[bk] = float(k_att[j, b])
+                pair_row["ref_level_dba"] = float(k_dba[j])
                 pairs.append(pair_row)
 
         candidates.append(cand_row)
