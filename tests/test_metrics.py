@@ -137,3 +137,22 @@ def test_str_paths(tmp_path: Path):
     )
     assert result["exit_code"] == 0
     assert (tmp_path / "s.csv").exists()
+
+
+def test_log_path(tmp_path: Path):
+    watch_dir = tmp_path / "watch"
+    watch_dir.mkdir()
+    csv_path = tmp_path / "m.csv"
+    log_file = tmp_path / "logs" / "a.log"
+
+    cmd = [
+        sys.executable,
+        "-c",
+        "import sys; print('hello out'); print('hello err', file=sys.stderr); sys.exit(2)",
+    ]
+    result = run_step("logged", cmd, watch_dir, csv_path, log_path=log_file)
+
+    assert result["exit_code"] == 2
+    text = log_file.read_text(encoding="utf-8")
+    assert "hello out" in text
+    assert "hello err" in text
