@@ -7,7 +7,7 @@ import numpy as np
 import pyogrio
 from rasterio.features import rasterize, shapes
 from rasterio.transform import from_origin
-from shapely.geometry import mapping, shape
+from shapely.geometry import box, mapping, shape
 
 CLASSES = {
     "water": ["VodniPlocha"],
@@ -85,6 +85,27 @@ def ground_polygons(hard: np.ndarray, transform) -> list:
         g = 0.0 if value == 1 else 1.0
         polys.append((shape(geom_dict), g))
     return polys
+
+
+def ground_grid(hard: np.ndarray, transform, cell_m: float = 200.0) -> list:
+    """Return one (square, G) per cell of cell_m metres, G = 1 - share of hard pixels in the cell.
+
+    NoiseModelling cuts every ground area on a 200 m grid; one square per grid cell keeps
+    that step fast (large polygons with many holes took hours).
+    """
+    res = abs(transform.a)
+    k = int(round(cell_m / res))
+    h, w = hard.shape
+    if k < 1 or abs(k * res - cell_m) > 1e-6 or h % k or w % k:
+        raise ValueError("cell_m must be a whole multiple of the pixel size and divide the grid")
+    share = (hard != 0).reshape(h // k, k, w // k, k).mean(axis=(1, 3))
+    out: list = []
+    for i in range(h // k):
+        for j in range(w // k):
+            x0 = transform.c + j * cell_m
+            y1 = transform.f - i * cell_m
+            out.append((box(x0, y1 - cell_m, x0 + cell_m, y1), float(1.0 - share[i, j])))
+    return out
 
 
 def write_ground_geojson(polys: list, path: Path) -> None:

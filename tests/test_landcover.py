@@ -11,6 +11,7 @@ from shapely.geometry import box
 
 from pipeline.landcover import (
     grid_shape,
+    ground_grid,
     ground_polygons,
     hard_mask,
     landcover_masks,
@@ -136,3 +137,27 @@ def test_write_ground_geojson(tmp_path):
     assert data["type"] == "FeatureCollection"
     g_values = {f["properties"]["G"] for f in data["features"]}
     assert g_values == {0.0, 1.0}
+
+
+def test_ground_grid():
+    hard = np.zeros((16, 16), dtype=np.uint8)
+    hard[0:8, 0:8] = 1
+    hard[8:12, 8:16] = 1
+    cells = ground_grid(hard, from_origin(-10000, -20000, 25, 25), 200.0)
+    assert len(cells) == 4
+    for g, _ in cells:
+        assert g.area == 40000.0
+    # Cell with bounds (-10000, -20200, -9800, -20000) has G 0.0
+    cell_00 = [(g, gv) for g, gv in cells if g.bounds == (-10000.0, -20200.0, -9800.0, -20000.0)]
+    assert len(cell_00) == 1
+    assert cell_00[0][1] == 0.0
+    # Cell (-9800, -20400, -9600, -20200) has G 0.5
+    cell_01 = [(g, gv) for g, gv in cells if g.bounds == (-9800.0, -20400.0, -9600.0, -20200.0)]
+    assert len(cell_01) == 1
+    assert cell_01[0][1] == 0.5
+    # Invalid cell_m raises ValueError
+    try:
+        ground_grid(hard, from_origin(0, 400, 25, 25), 210.0)
+        assert False, "expected ValueError"
+    except ValueError:
+        pass
