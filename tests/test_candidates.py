@@ -119,3 +119,19 @@ def test_build_candidates_all_forest():
     )
     assert result["stats"]["kept"] == 15
     assert all(st == "forest" for st in result["site_type"])
+
+
+# ── forest_fraction: full-tile performance ───────────────────────────────
+
+
+def test_forest_fraction_full_tile_is_fast():
+    import time
+    mask = np.zeros((4000, 4000), dtype=np.uint8)
+    mask[:2000, :] = 1
+    start = time.perf_counter()
+    result = forest_fraction(mask, 10.0, 300.0)
+    elapsed = time.perf_counter() - start
+    assert result.shape == (4000, 4000)
+    assert result[1000, 1000] == 1.0
+    assert result[3000, 1000] == 0.0
+    assert elapsed < 15, f"Took {elapsed:.1f}s (limit 15s)"

@@ -3,7 +3,7 @@
 import math
 
 import numpy as np
-from scipy.ndimage import convolve
+from scipy.signal import fftconvolve
 from scipy.spatial import cKDTree
 from shapely import contains_xy
 
@@ -64,7 +64,9 @@ def forest_fraction(forest_mask, res_m, radius_m):
     kernel = (dist_sq <= radius_m ** 2).astype(np.float64)
 
     arr = (forest_mask != 0).astype(np.float64)
-    return convolve(arr, kernel, mode="constant", cval=0.0) / kernel.sum()
+    # FFT convolution (zero padding); rounding removes FFT noise such as 1e-13
+    frac = fftconvolve(arr, kernel, mode="same") / kernel.sum()
+    return np.clip(np.round(frac, 9), 0.0, 1.0)
 
 
 def build_candidates(region, bounds, spacing_m, masks, transform,
