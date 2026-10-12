@@ -16,7 +16,7 @@ from pipeline.landcover import (
     grid_shape,
     hard_mask,
     landcover_masks,
-    ground_polygons,
+    ground_grid,
     write_ground_geojson,
 )
 from pipeline.nm_io import (
@@ -133,7 +133,7 @@ def nm_inputs(tile_id, settings, dem_index, gpkg, cands_csv, pairs_csv, work_dir
 
     # Ground
     if variant == "zabaged":
-        polys = ground_polygons(
+        polys = ground_grid(
             hard_mask(landcover_masks(gpkg, buf, res_m)),
             grid_shape(buf, res_m)[2],
         )
