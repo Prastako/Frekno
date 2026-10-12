@@ -1,0 +1,22 @@
+﻿<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:georss="http://www.georss.org/georss" xmlns="http://www.w3.org/2005/Atom" xml:lang="cs">
+  <id>https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/datasetFeeds/CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BENE09.xml</id>
+  <title>Digitální model reliéfu České republiky 4. generace (DMR 4G) - TIFF, S-JTSK - mapový list: Benešov 0-9</title>
+  <updated>2026-07-09T08:01:14+02:00</updated>
+  <author>
+    <name>Český úřad zeměměřický a katastrální</name>
+    <uri>https://geoportal.cuzk.gov.cz</uri>
+    <email>cuzk.helpdesk@cuzk.gov.cz</email>
+  </author>
+  <rights>žádné podmínky neplatí</rights>
+  <link href="https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/DMR4G-SJTSK-TIFF.xml" hreflang="cs" type="application/atom+xml" rel="up" />
+  <link href="https://geoportal.cuzk.gov.cz" rel="describedby" hreflang="cs" type="text/html" />
+  <entry>
+    <id>https://openzu.cuzk.gov.cz/opendata/DMR4G-TIFF/epsg-5514/BENE09.zip</id>
+    <title>Digitální model reliéfu České republiky 4. generace (DMR 4G) - TIFF, S-JTSK - mapový list: Benešov 0-9</title>
+    <updated>2026-07-09T08:01:14+02:00</updated>
+    <link href="https://openzu.cuzk.gov.cz/opendata/DMR4G-TIFF/epsg-5514/BENE09.zip" length="768908" rel="alternate" type="image/tiff" hreflang="cs" />
+    <category label="S-JTSK" term="http://www.opengis.net/def/crs/EPSG/0/5514" />
+    <georss:polygon>49.7764 14.6982 49.7764 14.7363 49.7972 14.7363 49.7972 14.6982 49.7764 14.6982</georss:polygon>
+  </entry>
+</feed>

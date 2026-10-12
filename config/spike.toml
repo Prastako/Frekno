@@ -1,0 +1,79 @@
+# Test-region spike settings (decided 2026-10-12, see docs/spike-plan.md).
+
+[region]
+name = "Stredocesky kraj"
+ruian_vusc_code = 27  # [unverified] RUIAN code of the region
+
+[tiles]
+size_m = 20000
+buffer_m = 10000
+
+[candidates]
+grid_m = 250
+min_distance_to_home_m = 500
+exclude = ["water", "buildings", "built_up"]
+
+[receptors]
+radius_m = 10000
+height_m = 4.0
+unclear_as = "home"
+selection_sector_deg = 5
+selection_rings_m = [0, 1000, 2000, 4000, 7000, 10000]
+worst_per_type_for_nm = 20
+
+[source]
+height_m = 2.0
+
+[terrain]
+dataset = "DMR4G"
+screening_resolution_m = 10
+nm_resolution_m = 25
+nm_sensitivity_resolutions_m = [10, 50]
+
+[weather]
+temperature_c = 10.0
+humidity_percent = 70.0
+pressure_kpa = 101.325
+favourable_occurrence = 1.0
+
+[ground]
+source = "ZABAGED"
+g_hard = 0.0
+g_soft = 1.0
+hard_classes = ["water", "built_up", "paved"]
+variant_all_hard = true
+
+[screening]
+barrier_cap_single_db = 20.0
+barrier_cap_double_db = 25.0
+ground_credit = false
+band_31_5_terrain_credit = false
+
+[noisemodelling]
+version = "6.0.0"
+bands_hz = [63, 125, 250, 500, 1000, 2000, 4000, 8000]
+sample_tiles = 5
+candidates_per_sample_tile = 50
+max_source_distance_m = 10000
+reflection_order = 0
+forest_attenuation = false
+buildings_as_obstacles = false
+threads = 4
+
+[report]
+night_reference_dba = 35.0
+guidance_laeq5min_db = 47.0
+
+[actions_limits]
+job_hours = 6
+ram_gb = 16
+disk_gb = 14
+cpus = 4
+concurrent_jobs = 20
+jobs_per_run = 256
+
+[paths.windows]
+python = 'C:\AI-Workspace\tools\python313\python.exe'
+java = 'C:\AI-Workspace\tools\jre21\bin\java.exe'
+noisemodelling_home = 'C:\AI-Workspace\tools\NoiseModelling_6.0.0'
+data_dir = 'C:\AI-Workspace\data\frekno'

@@ -1,0 +1,186 @@
+﻿<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:georss="http://www.georss.org/georss" xmlns:inspire_dls="http://inspire.ec.europa.eu/schemas/inspire_dls/1.0" xmlns="http://www.w3.org/2005/Atom" xml:lang="cs">
+  <id>https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/DMR4G-SJTSK-TIFF.xml</id>
+  <title>Stahovací služba Atom pro Digitální model reliéfu České republiky 4. generace (DMR 4G) - TIFF, S-JTSK</title>
+  <subtitle>Stahovací služba poskytuje předpřipravená data pro Digitální model reliéfu České republiky 4. generace (DMR 4G) ve formátu TIFF a souřadnicovém systému S-JTSK. Data jsou dostupná prostřednictvím technologie Atom. Služba je veřejně dostupná, bezúplatná a umožňuje stahování uvedených dat po mapových listech SM5. Pro stažení jsou soubory komprimovány (ZIP).</subtitle>
+  <updated>2026-07-09T08:02:44+02:00</updated>
+  <author>
+    <name>Český úřad zeměměřický a katastrální</name>
+    <uri>https://geoportal.cuzk.gov.cz</uri>
+    <email>cuzk.helpdesk@cuzk.gov.cz</email>
+  </author>
+  <rights>žádné podmínky neplatí</rights>
+  <link href="https://geoportal.cuzk.gov.cz/SDIProCSW/service.svc/get?REQUEST=GetRecordById&amp;SERVICE=CSW&amp;VERSION=2.0.2&amp;OUTPUTSCHEMA=http://www.isotc211.org/2005/gmd&amp;ELEMENTSETNAME=full&amp;Id=CZ-00025712-CUZK_ATOM-MD_DMR4G-SJTSK-TIFF" rel="describedby" title="metadata stahovací služby" type="application/xml" />
+  <link href="https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/DMR4G-SJTSK-TIFF.xml" hreflang="cs" rel="self" type="application/atom+xml" />
+  <link href="https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/OSD-DMR4G-SJTSK-TIFF.xml" hreflang="cs" rel="search" title="ČÚZK-ATOM-DMR4G-SJTSK-TIFF" type="application/opensearchdescription+xml" />
+  <entry>
+    <id>https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/datasetFeeds/CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BENE09.xml</id>
+    <title>Digitální model reliéfu České republiky 4. generace (DMR 4G) - TIFF, S-JTSK - mapový list: Benešov 0-9</title>
+    <updated>2026-07-09T08:01:14+02:00</updated>
+    <author>
+      <name>Český úřad zeměměřický a katastrální</name>
+      <uri>https://geoportal.cuzk.gov.cz</uri>
+      <email>cuzk.helpdesk@cuzk.gov.cz</email>
+    </author>
+    <rights>žádné podmínky neplatí</rights>
+    <link href="https://geoportal.cuzk.gov.cz/SDIProCSW/service.svc/get?REQUEST=GetRecordById&amp;SERVICE=CSW&amp;VERSION=2.0.2&amp;OUTPUTSCHEMA=http://www.isotc211.org/2005/gmd&amp;ELEMENTSETNAME=full&amp;Id=CZ-00025712-CUZK_ATOM-MD_DMR4G-SJTSK-TIFF" title="metadata datasetu" type="application/xml" rel="describedby" />
+    <link href="https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/datasetFeeds/CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BENE09.xml" rel="alternate" title="dataset feed" type="application/atom+xml" />
+    <category label="S-JTSK" term="http://www.opengis.net/def/crs/EPSG/0/5514" />
+    <inspire_dls:spatial_dataset_identifier_code>CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BENE09</inspire_dls:spatial_dataset_identifier_code>
+    <inspire_dls:spatial_dataset_identifier_namespace>ČÚZK</inspire_dls:spatial_dataset_identifier_namespace>
+    <georss:polygon>49.7764 14.6982 49.7764 14.7363 49.7972 14.7363 49.7972 14.6982 49.7764 14.6982</georss:polygon>
+  </entry>
+  <entry>
+    <id>https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/datasetFeeds/CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BERO07.xml</id>
+    <title>Digitální model reliéfu České republiky 4. generace (DMR 4G) - TIFF, S-JTSK - mapový list: Beroun 0-7</title>
+    <updated>2026-01-19T15:04:29+02:00</updated>
+    <author>
+      <name>Český úřad zeměměřický a katastrální</name>
+      <uri>https://geoportal.cuzk.gov.cz</uri>
+      <email>cuzk.helpdesk@cuzk.gov.cz</email>
+    </author>
+    <rights>žádné podmínky neplatí</rights>
+    <link href="https://geoportal.cuzk.gov.cz/SDIProCSW/service.svc/get?REQUEST=GetRecordById&amp;SERVICE=CSW&amp;VERSION=2.0.2&amp;OUTPUTSCHEMA=http://www.isotc211.org/2005/gmd&amp;ELEMENTSETNAME=full&amp;Id=CZ-00025712-CUZK_ATOM-MD_DMR4G-SJTSK-TIFF" title="metadata datasetu" type="application/xml" rel="describedby" />
+    <link href="https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/datasetFeeds/CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BERO07.xml" rel="alternate" title="dataset feed" type="application/atom+xml" />
+    <category label="S-JTSK" term="http://www.opengis.net/def/crs/EPSG/0/5514" />
+    <inspire_dls:spatial_dataset_identifier_code>CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BERO07</inspire_dls:spatial_dataset_identifier_code>
+    <inspire_dls:spatial_dataset_identifier_namespace>ČÚZK</inspire_dls:spatial_dataset_identifier_namespace>
+    <georss:polygon>49.9599 14.3083 49.9599 14.3466 49.9808 14.3466 49.9808 14.3083 49.9599 14.3083</georss:polygon>
+  </entry>
+  <entry>
+    <id>https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/datasetFeeds/CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BERO08.xml</id>
+    <title>Digitální model reliéfu České republiky 4. generace (DMR 4G) - TIFF, S-JTSK - mapový list: Beroun 0-8</title>
+    <updated>2026-01-19T15:04:29+02:00</updated>
+    <author>
+      <name>Český úřad zeměměřický a katastrální</name>
+      <uri>https://geoportal.cuzk.gov.cz</uri>
+      <email>cuzk.helpdesk@cuzk.gov.cz</email>
+    </author>
+    <rights>žádné podmínky neplatí</rights>
+    <link href="https://geoportal.cuzk.gov.cz/SDIProCSW/service.svc/get?REQUEST=GetRecordById&amp;SERVICE=CSW&amp;VERSION=2.0.2&amp;OUTPUTSCHEMA=http://www.isotc211.org/2005/gmd&amp;ELEMENTSETNAME=full&amp;Id=CZ-00025712-CUZK_ATOM-MD_DMR4G-SJTSK-TIFF" title="metadata datasetu" type="application/xml" rel="describedby" />
+    <link href="https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/datasetFeeds/CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BERO08.xml" rel="alternate" title="dataset feed" type="application/atom+xml" />
+    <category label="S-JTSK" term="http://www.opengis.net/def/crs/EPSG/0/5514" />
+    <inspire_dls:spatial_dataset_identifier_code>CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BERO08</inspire_dls:spatial_dataset_identifier_code>
+    <inspire_dls:spatial_dataset_identifier_namespace>ČÚZK</inspire_dls:spatial_dataset_identifier_namespace>
+    <georss:polygon>49.942 14.3121 49.942 14.3505 49.9629 14.3505 49.9629 14.3121 49.942 14.3121</georss:polygon>
+  </entry>
+  <entry>
+    <id>https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/datasetFeeds/CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BERO09.xml</id>
+    <title>Digitální model reliéfu České republiky 4. generace (DMR 4G) - TIFF, S-JTSK - mapový list: Beroun 0-9</title>
+    <updated>2026-01-19T15:04:29+02:00</updated>
+    <author>
+      <name>Český úřad zeměměřický a katastrální</name>
+      <uri>https://geoportal.cuzk.gov.cz</uri>
+      <email>cuzk.helpdesk@cuzk.gov.cz</email>
+    </author>
+    <rights>žádné podmínky neplatí</rights>
+    <link href="https://geoportal.cuzk.gov.cz/SDIProCSW/service.svc/get?REQUEST=GetRecordById&amp;SERVICE=CSW&amp;VERSION=2.0.2&amp;OUTPUTSCHEMA=http://www.isotc211.org/2005/gmd&amp;ELEMENTSETNAME=full&amp;Id=CZ-00025712-CUZK_ATOM-MD_DMR4G-SJTSK-TIFF" title="metadata datasetu" type="application/xml" rel="describedby" />
+    <link href="https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/datasetFeeds/CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BERO09.xml" rel="alternate" title="dataset feed" type="application/atom+xml" />
+    <category label="S-JTSK" term="http://www.opengis.net/def/crs/EPSG/0/5514" />
+    <inspire_dls:spatial_dataset_identifier_code>CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BERO09</inspire_dls:spatial_dataset_identifier_code>
+    <inspire_dls:spatial_dataset_identifier_namespace>ČÚZK</inspire_dls:spatial_dataset_identifier_namespace>
+    <georss:polygon>49.9242 14.316 49.9242 14.3543 49.9451 14.3543 49.9451 14.316 49.9242 14.316</georss:polygon>
+  </entry>
+  <entry>
+    <id>https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/datasetFeeds/CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BERO16.xml</id>
+    <title>Digitální model reliéfu České republiky 4. generace (DMR 4G) - TIFF, S-JTSK - mapový list: Beroun 1-6</title>
+    <updated>2026-01-19T15:04:31+02:00</updated>
+    <author>
+      <name>Český úřad zeměměřický a katastrální</name>
+      <uri>https://geoportal.cuzk.gov.cz</uri>
+      <email>cuzk.helpdesk@cuzk.gov.cz</email>
+    </author>
+    <rights>žádné podmínky neplatí</rights>
+    <link href="https://geoportal.cuzk.gov.cz/SDIProCSW/service.svc/get?REQUEST=GetRecordById&amp;SERVICE=CSW&amp;VERSION=2.0.2&amp;OUTPUTSCHEMA=http://www.isotc211.org/2005/gmd&amp;ELEMENTSETNAME=full&amp;Id=CZ-00025712-CUZK_ATOM-MD_DMR4G-SJTSK-TIFF" title="metadata datasetu" type="application/xml" rel="describedby" />
+    <link href="https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/datasetFeeds/CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BERO16.xml" rel="alternate" title="dataset feed" type="application/atom+xml" />
+    <category label="S-JTSK" term="http://www.opengis.net/def/crs/EPSG/0/5514" />
+    <inspire_dls:spatial_dataset_identifier_code>CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BERO16</inspire_dls:spatial_dataset_identifier_code>
+    <inspire_dls:spatial_dataset_identifier_namespace>ČÚZK</inspire_dls:spatial_dataset_identifier_namespace>
+    <georss:polygon>49.9746 14.2699 49.9746 14.3083 49.9955 14.3083 49.9955 14.2699 49.9746 14.2699</georss:polygon>
+  </entry>
+  <entry>
+    <id>https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/datasetFeeds/CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BERO17.xml</id>
+    <title>Digitální model reliéfu České republiky 4. generace (DMR 4G) - TIFF, S-JTSK - mapový list: Beroun 1-7</title>
+    <updated>2026-01-19T15:04:31+02:00</updated>
+    <author>
+      <name>Český úřad zeměměřický a katastrální</name>
+      <uri>https://geoportal.cuzk.gov.cz</uri>
+      <email>cuzk.helpdesk@cuzk.gov.cz</email>
+    </author>
+    <rights>žádné podmínky neplatí</rights>
+    <link href="https://geoportal.cuzk.gov.cz/SDIProCSW/service.svc/get?REQUEST=GetRecordById&amp;SERVICE=CSW&amp;VERSION=2.0.2&amp;OUTPUTSCHEMA=http://www.isotc211.org/2005/gmd&amp;ELEMENTSETNAME=full&amp;Id=CZ-00025712-CUZK_ATOM-MD_DMR4G-SJTSK-TIFF" title="metadata datasetu" type="application/xml" rel="describedby" />
+    <link href="https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/datasetFeeds/CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BERO17.xml" rel="alternate" title="dataset feed" type="application/atom+xml" />
+    <category label="S-JTSK" term="http://www.opengis.net/def/crs/EPSG/0/5514" />
+    <inspire_dls:spatial_dataset_identifier_code>CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BERO17</inspire_dls:spatial_dataset_identifier_code>
+    <inspire_dls:spatial_dataset_identifier_namespace>ČÚZK</inspire_dls:spatial_dataset_identifier_namespace>
+    <georss:polygon>49.9568 14.2738 49.9568 14.3121 49.9777 14.3121 49.9777 14.2738 49.9568 14.2738</georss:polygon>
+  </entry>
+  <entry>
+    <id>https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/datasetFeeds/CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BERO18.xml</id>
+    <title>Digitální model reliéfu České republiky 4. generace (DMR 4G) - TIFF, S-JTSK - mapový list: Beroun 1-8</title>
+    <updated>2026-01-19T15:04:31+02:00</updated>
+    <author>
+      <name>Český úřad zeměměřický a katastrální</name>
+      <uri>https://geoportal.cuzk.gov.cz</uri>
+      <email>cuzk.helpdesk@cuzk.gov.cz</email>
+    </author>
+    <rights>žádné podmínky neplatí</rights>
+    <link href="https://geoportal.cuzk.gov.cz/SDIProCSW/service.svc/get?REQUEST=GetRecordById&amp;SERVICE=CSW&amp;VERSION=2.0.2&amp;OUTPUTSCHEMA=http://www.isotc211.org/2005/gmd&amp;ELEMENTSETNAME=full&amp;Id=CZ-00025712-CUZK_ATOM-MD_DMR4G-SJTSK-TIFF" title="metadata datasetu" type="application/xml" rel="describedby" />
+    <link href="https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/datasetFeeds/CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BERO18.xml" rel="alternate" title="dataset feed" type="application/atom+xml" />
+    <category label="S-JTSK" term="http://www.opengis.net/def/crs/EPSG/0/5514" />
+    <inspire_dls:spatial_dataset_identifier_code>CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_BERO18</inspire_dls:spatial_dataset_identifier_code>
+    <inspire_dls:spatial_dataset_identifier_namespace>ČÚZK</inspire_dls:spatial_dataset_identifier_namespace>
+    <georss:polygon>49.9389 14.2776 49.9389 14.316 49.9599 14.316 49.9599 14.2776 49.9389 14.2776</georss:polygon>
+  </entry>
+  <entry>
+    <id>https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/datasetFeeds/CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_CHEB34.xml</id>
+    <title>Digitální model reliéfu České republiky 4. generace (DMR 4G) - TIFF, S-JTSK - mapový list: Cheb 3-4</title>
+    <updated>2026-01-19T15:09:33+02:00</updated>
+    <author>
+      <name>Český úřad zeměměřický a katastrální</name>
+      <uri>https://geoportal.cuzk.gov.cz</uri>
+      <email>cuzk.helpdesk@cuzk.gov.cz</email>
+    </author>
+    <rights>žádné podmínky neplatí</rights>
+    <link href="https://geoportal.cuzk.gov.cz/SDIProCSW/service.svc/get?REQUEST=GetRecordById&amp;SERVICE=CSW&amp;VERSION=2.0.2&amp;OUTPUTSCHEMA=http://www.isotc211.org/2005/gmd&amp;ELEMENTSETNAME=full&amp;Id=CZ-00025712-CUZK_ATOM-MD_DMR4G-SJTSK-TIFF" title="metadata datasetu" type="application/xml" rel="describedby" />
+    <link href="https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/datasetFeeds/CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_CHEB34.xml" rel="alternate" title="dataset feed" type="application/atom+xml" />
+    <category label="S-JTSK" term="http://www.opengis.net/def/crs/EPSG/0/5514" />
+    <inspire_dls:spatial_dataset_identifier_code>CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_CHEB34</inspire_dls:spatial_dataset_identifier_code>
+    <inspire_dls:spatial_dataset_identifier_namespace>ČÚZK</inspire_dls:spatial_dataset_identifier_namespace>
+    <georss:polygon>50.012 12.4263 50.012 12.4653 50.0334 12.4653 50.0334 12.4263 50.012 12.4263</georss:polygon>
+  </entry>
+  <entry>
+    <id>https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/datasetFeeds/CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_OSTR98.xml</id>
+    <title>Digitální model reliéfu České republiky 4. generace (DMR 4G) - TIFF, S-JTSK - mapový list: Ostrava 9-8</title>
+    <updated>2026-01-19T15:32:47+02:00</updated>
+    <author>
+      <name>Český úřad zeměměřický a katastrální</name>
+      <uri>https://geoportal.cuzk.gov.cz</uri>
+      <email>cuzk.helpdesk@cuzk.gov.cz</email>
+    </author>
+    <rights>žádné podmínky neplatí</rights>
+    <link href="https://geoportal.cuzk.gov.cz/SDIProCSW/service.svc/get?REQUEST=GetRecordById&amp;SERVICE=CSW&amp;VERSION=2.0.2&amp;OUTPUTSCHEMA=http://www.isotc211.org/2005/gmd&amp;ELEMENTSETNAME=full&amp;Id=CZ-00025712-CUZK_ATOM-MD_DMR4G-SJTSK-TIFF" title="metadata datasetu" type="application/xml" rel="describedby" />
+    <link href="https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/datasetFeeds/CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_OSTR98.xml" rel="alternate" title="dataset feed" type="application/atom+xml" />
+    <category label="S-JTSK" term="http://www.opengis.net/def/crs/EPSG/0/5514" />
+    <inspire_dls:spatial_dataset_identifier_code>CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_OSTR98</inspire_dls:spatial_dataset_identifier_code>
+    <inspire_dls:spatial_dataset_identifier_namespace>ČÚZK</inspire_dls:spatial_dataset_identifier_namespace>
+    <georss:polygon>49.6849 18.239 49.6849 18.2759 49.7048 18.2759 49.7048 18.239 49.6849 18.239</georss:polygon>
+  </entry>
+  <entry>
+    <id>https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/datasetFeeds/CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_OSTR99.xml</id>
+    <title>Digitální model reliéfu České republiky 4. generace (DMR 4G) - TIFF, S-JTSK - mapový list: Ostrava 9-9</title>
+    <updated>2026-01-19T15:32:47+02:00</updated>
+    <author>
+      <name>Český úřad zeměměřický a katastrální</name>
+      <uri>https://geoportal.cuzk.gov.cz</uri>
+      <email>cuzk.helpdesk@cuzk.gov.cz</email>
+    </author>
+    <rights>žádné podmínky neplatí</rights>
+    <link href="https://geoportal.cuzk.gov.cz/SDIProCSW/service.svc/get?REQUEST=GetRecordById&amp;SERVICE=CSW&amp;VERSION=2.0.2&amp;OUTPUTSCHEMA=http://www.isotc211.org/2005/gmd&amp;ELEMENTSETNAME=full&amp;Id=CZ-00025712-CUZK_ATOM-MD_DMR4G-SJTSK-TIFF" title="metadata datasetu" type="application/xml" rel="describedby" />
+    <link href="https://atom.cuzk.gov.cz/DMR4G-SJTSK-TIFF/datasetFeeds/CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_OSTR99.xml" rel="alternate" title="dataset feed" type="application/atom+xml" />
+    <category label="S-JTSK" term="http://www.opengis.net/def/crs/EPSG/0/5514" />
+    <inspire_dls:spatial_dataset_identifier_code>CZ-00025712-CUZK_DMR4G-SJTSK-TIFF_OSTR99</inspire_dls:spatial_dataset_identifier_code>
+    <inspire_dls:spatial_dataset_identifier_namespace>ČÚZK</inspire_dls:spatial_dataset_identifier_namespace>
+    <georss:polygon>49.667 18.2413 49.667 18.2782 49.6869 18.2782 49.6869 18.2413 49.667 18.2413</georss:polygon>
+  </entry>
+</feed>

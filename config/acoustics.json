@@ -1,0 +1,26 @@
+{
+  "about": "Acoustic constants shared by the pipeline and the future site. Values from docs/acoustic_sanity_check.xlsx (2026-10-12).",
+  "bands_hz": [31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000],
+  "band_index": [-5, -4, -3, -2, -1, 0, 1, 2, 3],
+  "band_index_note": "Exact centre frequency = 1000 * 10^(0.3 * index), used for air absorption.",
+  "a_weighting_db": [-39.4, -26.2, -16.1, -8.6, -3.2, 0.0, 1.2, 1.0, -1.1],
+  "c_weighting_db": [-3.0, -0.8, -0.2, 0.0, 0.0, 0.0, -0.2, -0.8, -3.0],
+  "weighting_source": "IEC 61672-1",
+  "hearing_threshold_db": [59.5, 37.5, 22.1, 11.4, 4.4, 2.4, -1.3, -5.4, 12.6],
+  "hearing_threshold_note": "[unverified] recalled ISO 226:2003 free-field threshold for pure tones, used as an octave-band approximation",
+  "weather": {"temperature_c": 10.0, "humidity_percent": 70.0, "pressure_kpa": 101.325},
+  "characters": {
+    "balanced": {"label": "Balanced", "source_genre": "Alt & Rock", "bands_db": [99, 109, 100, 97, 97, 92, 88, 84, 78]},
+    "bass_heavy": {"label": "Bass heavy", "source_genre": "Urban", "bands_db": [109, 113, 98, 96, 94, 94, 90, 86, 84]},
+    "very_bass_heavy": {"label": "Very bass heavy", "source_genre": "Dance", "bands_db": [111, 116, 101, 96, 94, 93, 89, 85, 83]}
+  },
+  "characters_source": "Fiumicelli, Parker, Lawrence, Stewart: Low frequency sound at outdoor concerts (IOA), Table 1; octave bands, unweighted, normalised to 98 dB(A)",
+  "classes": {
+    "small": {"label": "Small PA", "level_dba": 99.0, "distance_m": 10.0},
+    "medium": {"label": "Medium (2-4 subs)", "level_dba": 99.0, "distance_m": 20.0},
+    "large": {"label": "Large", "level_dba": 99.0, "distance_m": 40.0}
+  },
+  "classes_note": "[assumed] typical playing level LAeq at a distance from the stack; DIN 15905-5 audience limit and IOA mix-position data, not measured at outdoor parties",
+  "targets": {"night_reference_dba": 35.0, "guidance_laeq5min_db": 47.0},
+  "targets_note": "35 dB(A): NV 272/2011 night limit, kept as a reference only. 47 dB: NRL 2016 guidance, clearly acceptable outdoors."
+}

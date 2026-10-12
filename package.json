@@ -1,0 +1,8 @@
+{
+  "name": "frekno",
+  "private": true,
+  "description": "Python project. This file only lets the AI-Workspace watcher and foreman run the Python tests with npm test.",
+  "scripts": {
+    "test": "C:\\AI-Workspace\\tools\\python313\\python.exe -m pytest -q -p no:cacheprovider"
+  }
+}
