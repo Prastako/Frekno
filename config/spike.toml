@@ -2,7 +2,7 @@
 
 [region]
 name = "Stredocesky kraj"
-ruian_vusc_code = 27  # [unverified] RUIAN code of the region
+ruian_vusc_code = 27  # RUIAN VUSC code of Stredocesky kraj (checked 2026-10-12)
 
 [tiles]
 size_m = 20000
@@ -11,6 +11,7 @@ buffer_m = 10000
 [candidates]
 grid_m = 250
 min_distance_to_home_m = 500
+forest_radius_m = 300
 exclude = ["water", "buildings", "built_up"]
 
 [receptors]
@@ -41,7 +42,7 @@ favourable_occurrence = 1.0
 source = "ZABAGED"
 g_hard = 0.0
 g_soft = 1.0
-hard_classes = ["water", "built_up", "paved"]
+hard_classes = ["water", "compound", "quarry"]  # pipeline/landcover.py HARD_CLASSES
 variant_all_hard = true
 
 [screening]
@@ -49,6 +50,9 @@ barrier_cap_single_db = 20.0
 barrier_cap_double_db = 25.0
 ground_credit = false
 band_31_5_terrain_credit = false
+n_points = 200
+ref_class = "medium"
+ref_character = "very_bass_heavy"
 
 [noisemodelling]
 version = "6.0.0"
@@ -78,3 +82,5 @@ python = 'C:\AI-Workspace\tools\python313\python.exe'
 java = 'C:\AI-Workspace\tools\jre21\bin\java.exe'
 noisemodelling_home = 'C:\AI-Workspace\tools\NoiseModelling_6.0.0'
 data_dir = 'C:\AI-Workspace\data\frekno'
+zabaged_gpkg = 'C:\AI-Workspace\work\frekno-out\zabaged\ZABAGED_RESULTS.gpkg'
+out_dir = 'C:\AI-Workspace\work\frekno-out\spike'
