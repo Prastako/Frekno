@@ -16,7 +16,8 @@ exclude = ["water", "buildings", "built_up"]
 [receptors]
 radius_m = 10000
 height_m = 4.0
-unclear_as = "home"
+# Fallback rule when use-code is missing, not in type map, or classified as unclear
+unclear_rule = "house_number"
 selection_sector_deg = 5
 selection_rings_m = [0, 1000, 2000, 4000, 7000, 10000]
 worst_per_type_for_nm = 20
