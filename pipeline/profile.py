@@ -17,9 +17,12 @@ def sample_dem(dem, transform, xs, ys, nodata=-9999.0) -> np.ndarray:
 
     Cell values are taken at cell centres.
     Cells equal to *nodata* count as NaN.
+    nodata=None: dem already has NaN for missing cells; it is used as is, without a copy.
     """
-    arr = np.asarray(dem, dtype=np.float64)
-    arr[arr == nodata] = np.nan
+    arr = np.asarray(dem)
+    if nodata is not None:
+        arr = arr.astype(np.float64)
+        arr[arr == nodata] = np.nan
 
     xs = np.asarray(xs, dtype=np.float64)
     ys = np.asarray(ys, dtype=np.float64)

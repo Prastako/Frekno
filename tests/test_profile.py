@@ -140,3 +140,21 @@ class TestSingleEdgeFourProfiles:
 
         # Profile 3: NaN at ends, valid barrier → same as profile 1
         assert delta[3] == pytest.approx(expected_barrier, abs=1e-9)
+
+
+class TestSampleDemNoCopy:
+    def test_sample_dem_does_not_change_input(self):
+        dem = np.full((4, 4), 100.0, dtype=np.float64)
+        dem[0, 0] = -9999.0
+        tr = from_origin(0, 40, 10, 10)
+        result = sample_dem(dem, tr, [25.0], [15.0])
+        assert dem[0, 0] == -9999.0
+        assert result[0] == pytest.approx(100.0, abs=1e-6)
+
+    def test_sample_dem_nodata_none(self):
+        dem = np.full((4, 4), 100.0, dtype=np.float64)
+        dem[0, 0] = np.nan
+        tr = from_origin(0, 40, 10, 10)
+        result = sample_dem(dem, tr, [25.0, 5.0], [15.0, 35.0], nodata=None)
+        assert result[0] == pytest.approx(100.0, abs=1e-6)
+        assert np.isnan(result[1])
