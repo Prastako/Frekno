@@ -49,8 +49,11 @@ def run_step(
     env: dict[str, str] | None = None,
     timeout_s: float | None = None,
     sample_s: float = 0.25,
+    log_path: Path | str | None = None,
 ) -> dict:
     """Run *cmd* as a subprocess and record metrics to *csv_path*.
+
+    log_path: when given, stdout and stderr of the command go to this file.
 
     Returns a dict keyed by :data:`CSV_COLUMNS`.
     """
@@ -63,8 +66,13 @@ def run_step(
     peak_disk_sampled = 0
 
     # -- launch --------------------------------------------------------
+    log_file = None
+    if log_path is not None:
+        Path(log_path).parent.mkdir(parents=True, exist_ok=True)
+        log_file = open(log_path, "w", encoding="utf-8")
     try:
-        proc = subprocess.Popen(cmd, cwd=cwd, env=env)
+        proc = subprocess.Popen(cmd, cwd=cwd, env=env, stdout=log_file,
+                                stderr=subprocess.STDOUT if log_file else None)
         ps_proc = psutil.Process(proc.pid)
     except OSError:
         # Program not found or similar – record failure, no exception.
@@ -82,6 +90,8 @@ def run_step(
             "exit_code": -1,
             "timed_out": False,
         }
+        if log_file is not None:
+            log_file.close()
         _write_row(csv_path, result)
         return result
 
@@ -157,6 +167,8 @@ def run_step(
         "timed_out": timed_out,
     }
 
+    if log_file is not None:
+        log_file.close()
     _write_row(csv_path, result)
     return result
 
