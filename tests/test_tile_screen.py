@@ -101,6 +101,10 @@ def setup(tmp_path_factory):
             "nm_resolution_m": 25,
             "nm_sensitivity_resolutions_m": [10, 50],
         },
+        "ground": {
+            "g_hard": 0.0,
+            "g_soft": 1.0,
+        },
         "weather": {
             "temperature_c": 10.0,
             "humidity_percent": 70.0,

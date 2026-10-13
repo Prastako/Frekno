@@ -265,3 +265,40 @@ def test_pairs_follow_loudness_order_behind_a_wall(flat_dem, tr):
     assert len(pairs2) == 1
     assert pairs2[0]["receptor_id"] == "east"
     assert pairs2[0]["rx"] == pytest.approx(16000.0, abs=1e-6)
+
+
+def test_cnossos_no_hard(flat_dem, tr):
+    """CNOSOS without hard mask equals 20*log10(d3) + alpha*(d3-1)/1000 with d3=hypot(1000,2)."""
+    alpha = air_absorption_db_per_km(10, 70)
+    att = pair_attenuation(
+        flat_dem, tr,
+        15000, 15000,
+        [16000], [15000],
+        2, 4, 200, alpha,
+        method="cnossos",
+    )
+    d3 = np.hypot(1000, 2)
+    expected = 20.0 * np.log10(d3) + np.array(alpha) * (d3 - 1) / 1000.0
+    np.testing.assert_allclose(att[0], expected, atol=1e-6)
+
+
+def test_cnossos_hard_everywhere(flat_dem, tr):
+    """CNOSOS with hard everywhere is 7.92 dB lower in all 9 bands."""
+    alpha = air_absorption_db_per_km(10, 70)
+    att_no_hard = pair_attenuation(
+        flat_dem, tr,
+        15000, 15000,
+        [16000], [15000],
+        2, 4, 200, alpha,
+        method="cnossos",
+    )
+    att_hard = pair_attenuation(
+        flat_dem, tr,
+        15000, 15000,
+        [16000], [15000],
+        2, 4, 200, alpha,
+        method="cnossos",
+        hard=np.ones((3000, 3000), dtype=bool),
+    )
+    for b in range(9):
+        assert att_hard[0, b] == pytest.approx(att_no_hard[0, b] - 7.92, abs=1e-4)
