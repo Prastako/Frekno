@@ -6,6 +6,7 @@ import json
 import numpy as np
 import pandas as pd
 import pytest
+from shapely.geometry import box
 
 from pipeline import pack
 
@@ -130,3 +131,18 @@ def test_pack_tile_leaves_out_border_spots(tmp_path):
     meta = pack.pack_tile(d, tmp_path / "site", SITE_IDS)
     assert (meta["file"], meta["spots"], meta["border_dropped"]) == (None, 0, 1)
     assert not (tmp_path / "site" / "tiles").exists()
+
+
+def test_pack_tile_leaves_out_military_areas(tmp_path):
+    cands, pairs, details = make_tile([20.0], [60.0])
+    for t in pack.LAYERS:
+        cands[f"worst_{t}_dba"] = 60.0 if t == "home" else np.nan
+    d = tmp_path / "scr" / "20k_-37_-53"
+    d.mkdir(parents=True)
+    cands.to_csv(d / "candidates.csv", index=False)
+    pairs.to_csv(d / "pairs.csv", index=False)
+    details.to_csv(d / "details.csv", index=False)
+    far = pack.pack_tile(d, tmp_path / "a", SITE_IDS, military=box(-730000, -1060000, -720000, -1040000))
+    assert (far["spots"], far["military_dropped"]) == (1, 0)
+    meta = pack.pack_tile(d, tmp_path / "b", SITE_IDS, military=box(-745000, -1055000, -735000, -1045000))
+    assert (meta["file"], meta["spots"], meta["border_dropped"], meta["military_dropped"]) == (None, 0, 0, 1)
