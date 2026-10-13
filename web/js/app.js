@@ -14,7 +14,7 @@ const LAYER_KEYS = ["home", "cottage", "campsite", "care", "recreation"];
 const REF_RIG = { cls: "medium", character: "very_bass_heavy" }; // the screening's reference rig behind ref_min_dba
 const DEFAULTS = { cls: "medium", character: "very_bass_heavy", level: 99, distance: 20, cardioid: false, tier: "night45", goal: 40,
   perLayer: false, lt: [40, 40, 40, 40, 40], layers: [1, 1, 1, 1, 1], sites: [0, 1, 2], flat: 0, access: "any",
-  protect: "flag", forestLaw: false, border: true, area: "view", rect: null, view: null, base: "night" };
+  protect: "flag", forestLaw: false, area: "view", rect: null, view: null, base: "night" };
 const CHOICES = { cls: ["small", "medium", "large", "custom"], character: ["balanced", "bass_heavy", "very_bass_heavy"],
   tier: ["inaudible", "cz35", "night45", "custom"], access: Object.keys(ACCESS), protect: Object.keys(PROTECT),
   area: ["view", "rect", "all"], base: ["night", "topo", "orto"], flat: [0, 2000, 5000, 10000, 20000] };
@@ -25,7 +25,7 @@ const field = (n) => form.elements.namedItem(n);
 const state = readHash();
 const cache = new Map();
 let index = null, api = null, results = [], metaById = new Map(), gen = 0, drawing = false, selected = null, prot = null, timer = 0;
-let status = ["", {}];
+let status = ["", {}], nearBorder = false;
 
 function readHash() {
   const s = structuredClone(DEFAULTS);
@@ -61,7 +61,7 @@ const clamp = (v, lo, hi, d) => (Number.isFinite(Number(v)) && v !== "" ? Math.m
 function fillForm() {
   for (const k of ["cls", "character", "access", "protect", "tier"]) field(k).value = state[k];
   for (const k of ["level", "distance", "goal", "flat"]) field(k).value = String(state[k]);
-  for (const k of ["cardioid", "perLayer", "forestLaw", "border"]) field(k).checked = state[k];
+  for (const k of ["cardioid", "perLayer", "forestLaw"]) field(k).checked = state[k];
   form.querySelectorAll("[name=layer]").forEach((el, l) => { el.checked = Boolean(state.layers[l]); });
   form.querySelectorAll(".lt").forEach((el, l) => { el.value = String(state.lt[l]); });
   form.querySelectorAll("[name=site]").forEach((el) => { el.checked = state.sites.includes(Number(el.value)); });
@@ -73,7 +73,7 @@ function readForm() {
   state.distance = clamp(field("distance").value, 1, 200, 20);
   state.goal = clamp(field("goal").value, 15, 70, 40);
   state.flat = Number(field("flat").value);
-  for (const k of ["cardioid", "perLayer", "forestLaw", "border"]) state[k] = field(k).checked;
+  for (const k of ["cardioid", "perLayer", "forestLaw"]) state[k] = field(k).checked;
   state.layers = [...form.querySelectorAll("[name=layer]")].map((el) => (el.checked ? 1 : 0));
   state.lt = [...form.querySelectorAll(".lt")].map((el) => clamp(el.value, 15, 70, 40));
   state.sites = [...form.querySelectorAll("[name=site]:checked")].map((el) => Number(el.value));
@@ -143,7 +143,13 @@ function overview() {
   const shift = level(sourceSpectrum(index, rig())) - level(sourceSpectrum(index, REF_RIG));
   const o = opts();
   const target = Math.min(...o.targets.filter((_, l) => o.layers[l]));
-  setTiles(api.map, index.tiles.map((m) => ({ bbox: m.bbox, outline: m.outline, s: m.ref_min_dba === null ? 10 : score(target - m.ref_min_dba - shift) })));
+  setTiles(api.map, index.tiles.map((m) => ({ bbox: m.bbox, outline: m.outline,
+    s: m.spots === 0 ? 0 : m.ref_min_dba === null ? 10 : score(target - m.ref_min_dba - shift) })));
+}
+
+// Sites near the state border are left out of the data; say so when the area touches them.
+function noteBorder() {
+  $("#border-note").textContent = nearBorder ? t("border_hidden") : "";
 }
 
 async function search() {
@@ -154,17 +160,20 @@ async function search() {
   let bbox = state.area === "view" ? viewBbox(api.map) : state.area === "rect" ? state.rect : null;
   setArea(api.map, state.area === "rect" ? state.rect : null);
   const metas = bbox ? index.tiles.filter((m) => intersects(m.bbox, bbox)) : index.tiles;
+  nearBorder = Boolean(bbox || state.area === "all") && metas.some((m) => m.border_dropped > 0);
+  noteBorder();
+  const load = metas.filter((m) => m.spots > 0);
   if (state.area === "rect" && !bbox) return show([], "draw_hint");
-  if (state.area === "view" && metas.length > MAX_VIEW_TILES) return show([], "zoom_hint");
+  if (state.area === "view" && load.length > MAX_VIEW_TILES) return show([], "zoom_hint");
   const ctx = makeContext(index, rig(), opts());
   const f = {
     sites: state.sites, minFlat: state.flat, access: ACCESS[state.access] ?? null,
-    excludeProt: (PROTECT[state.protect] ?? 0) | (state.border ? index.border_bit ?? 128 : 0), forestLaw: state.forestLaw,
+    excludeProt: (PROTECT[state.protect] ?? 0) | (index.border_bit ?? 128), forestLaw: state.forestLaw,
     bbox: state.area === "all" ? null : bbox,
   };
   let best = [], total = 0;
   try {
-    await eachTile(metas, (m, tile) => {
+    await eachTile(load, (m, tile) => {
       if (my !== gen) return;
       const part = rank([{ id: m.id, t: tile }], ctx, f).map((r) => keep(m.id, tile, r));
       total += part.length;
@@ -200,7 +209,7 @@ const badge = (sc) => `<span class="score" style="--c:${SCORE_COLORS[sc - 1]};--
 function loudestText(r) {
   if (r.layer < 0) return "";
   const text = t("at_loudest", { l: num(r.level), layer: t(`layer_${LAYER_KEYS[r.layer]}`).toLowerCase(), d: km(r.d0), dir: dir(deg(r.b0)) });
-  return r.prot & 128 ? `${text}; ${t("border_short")}` : text;
+  return text;
 }
 
 function listItem(r, k) {
@@ -245,7 +254,6 @@ async function openPanel(k, fly) {
     t("dist", { road: meters(s.roadM), track: meters(s.trackM), forest: meters(s.forestM) }),
   ];
   if (s.forestM <= 50) facts.push(t("forest_flag"));
-  if (s.prot & 128) facts.push(t("border_note"));
   const meter = Array.from({ length: 10 }, (_, j) => `<i class="${j < r.score ? "on" : ""}${j === 5 ? " goal" : ""}"></i>`).join("");
   const el = $("#panel");
   el.innerHTML = `<button type="button" class="x" aria-label="${t("close")}">×</button>
@@ -283,6 +291,7 @@ function setLanguage(code) {
   applyStatic(document);
   $("#about-body").innerHTML = t("about_html");
   legend();
+  noteBorder();
   showModes();
   if (api && index) show(results, ...status);
 }
