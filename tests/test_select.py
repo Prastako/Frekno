@@ -28,22 +28,22 @@ def test_bearing_deg():
 
 
 def test_select_with_facility():
-    """Select with facility receptors returns keys for home, cottage, and facility;
-    facility key holds facility indices; home result is unchanged."""
+    """Select with campsite receptors returns keys for home, cottage, and campsite;
+    campsite key holds campsite indices; home result is unchanged."""
     rx = np.array([-100, 100, 50, -100], dtype=float)
     ry = np.array([500, 500, -200, -600], dtype=float)
-    rtype = np.array(["home", "home", "facility", "facility"])
+    rtype = np.array(["home", "home", "campsite", "campsite"])
 
     result = select_receptors(0, 0, rx, ry, rtype, 10000, 5,
                              [0, 1000, 2000, 4000, 7000, 10000])
 
     assert "home" in result
     assert "cottage" in result
-    assert "facility" in result
-    np.testing.assert_array_equal(result["facility"], [2, 3])
+    assert "campsite" in result
+    np.testing.assert_array_equal(result["campsite"], [2, 3])
     np.testing.assert_array_equal(result["home"], [0, 1])
 
-    # Compare with result when facility receptors are removed
+    # Compare with result when campsite receptors are removed
     rx_no_fac = np.array([-100, 100], dtype=float)
     ry_no_fac = np.array([500, 500], dtype=float)
     rtype_no_fac = np.array(["home", "home"])

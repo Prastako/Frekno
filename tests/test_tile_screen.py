@@ -144,19 +144,20 @@ def test_tile_parts():
 
 
 def test_candidate_out_columns_have_facility():
-    """CANDIDATE_OUT_COLUMNS includes facility-related columns."""
-    assert "n_facility" in CANDIDATE_OUT_COLUMNS
-    assert "worst_facility_dba" in CANDIDATE_OUT_COLUMNS
-    assert "worst_facility_63" in CANDIDATE_OUT_COLUMNS
+    """CANDIDATE_OUT_COLUMNS includes columns for campsite, care, and recreation."""
+    for t in ("campsite", "care", "recreation"):
+        assert f"n_{t}" in CANDIDATE_OUT_COLUMNS
+        assert f"worst_{t}_dba" in CANDIDATE_OUT_COLUMNS
+        assert f"worst_{t}_63" in CANDIDATE_OUT_COLUMNS
 
 
 def test_candidate_out_columns_equals_type_list():
     """CANDIDATE_OUT_COLUMNS matches the full expected column list derived from TYPES."""
     assert CANDIDATE_OUT_COLUMNS == [
         "candidate_id", "x", "y", "site_type", "forest_frac",
-        "n_home", "n_cottage", "n_facility",
-        "worst_home_dba", "worst_cottage_dba", "worst_facility_dba",
-        "worst_home_63", "worst_cottage_63", "worst_facility_63",
+        "n_home", "n_cottage", "n_campsite", "n_care", "n_recreation",
+        "worst_home_dba", "worst_cottage_dba", "worst_campsite_dba", "worst_care_dba", "worst_recreation_dba",
+        "worst_home_63", "worst_cottage_63", "worst_campsite_63", "worst_care_63", "worst_recreation_63",
     ]
 
 
