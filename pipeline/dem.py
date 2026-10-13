@@ -19,8 +19,10 @@ INDEX_COLUMNS = ["code", "path", "xmin", "ymin", "xmax", "ymax"]
 
 
 def sheet_path(zip_path: str | Path) -> str:
-    """Return the /vsizip/ rasterio path for a DMR 4G sheet inside a ZIP."""
+    """Return the rasterio path of a terrain file: /vsizip/ for a DMR 4G ZIP, the file itself for a GeoTIFF."""
     p = Path(zip_path).resolve()
+    if p.suffix.lower() in (".tif", ".tiff"):
+        return p.as_posix()
     return "/vsizip/" + p.as_posix() + "/" + p.stem + ".tif"
 
 

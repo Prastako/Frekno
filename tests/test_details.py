@@ -40,3 +40,11 @@ def test_protected_flags():
     bits, ids = protected_flags([0.0], [0.0], sites)
     assert bits[0] == 2  # chko = bit 2
     assert ids[0] == "NS-1"
+
+
+def test_border_flags():
+    from pipeline.details import border_flags
+
+    region = shapely.box(0, 0, 100000, 100000)
+    assert list(border_flags([5000.0, 50000.0], [50000.0, 50000.0], region, (0, 0, 100000, 100000), 10000.0)) == [1, 0]
+    assert list(border_flags([5000.0], [50000.0], None, (0, 0, 1, 1), 10000.0)) == [0]

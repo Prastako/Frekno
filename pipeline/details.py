@@ -22,7 +22,7 @@ ROAD_LAYERS = {"SilniceDalnice": ("typsil_k", ["S1", "S1p", "S1v", "S2", "S2p", 
                "Ulice": ("typulice_k", ["026", "926"])}
 TRACK_LAYERS = {"Cesta": ("typcesty_k", ["026"])}
 PROTECTED_BITS = {"np": 1, "chko": 2, "zchu": 4, "buffer": 8, "evl": 16, "po": 32, "contract": 64}
-DETAIL_COLUMNS = ["candidate_id", "slope_pct", "flat_m2", "forest_m", "road_m", "track_m", "prot", "prot_sites"]
+DETAIL_COLUMNS = ["candidate_id", "slope_pct", "flat_m2", "forest_m", "road_m", "track_m", "prot", "prot_sites", "border"]
 
 
 def slope_percent(dem: np.ndarray, res_m: float, nodata: float = -9999.0) -> np.ndarray:
@@ -81,6 +81,18 @@ def protected_flags(xs, ys, sites) -> tuple[np.ndarray, list[str]]:
     return bits, [";".join(v) for v in ids]
 
 
+def border_flags(xs, ys, region, bounds, radius_m: float) -> np.ndarray:
+    """1 where the edge of *region* (inside *bounds*) is closer than radius_m, else 0; all 0 without a region."""
+    out = np.zeros(len(xs), dtype=np.int64)
+    if region is None or len(xs) == 0:
+        return out
+    edge = shapely.intersection(region.boundary, shapely.box(*bounds))
+    if edge.is_empty:
+        return out
+    d = shapely.distance(shapely.points(np.asarray(xs, float), np.asarray(ys, float)), edge)
+    return (d < radius_m).astype(np.int64)
+
+
 def read_layers(gpkg, layers: dict, bounds: tuple) -> list:
     """Geometries of *layers* inside *bounds*; a layer maps to None or (column, allowed values)."""
     out = []
@@ -93,7 +105,8 @@ def read_layers(gpkg, layers: dict, bounds: tuple) -> list:
     return out
 
 
-def tile_details(tile_id: str, dem_index: list, gpkg, protected_gpkg, screen_dir, res_m: float = 10.0) -> dict:
+def tile_details(tile_id: str, dem_index: list, gpkg, protected_gpkg, screen_dir, res_m: float = 10.0,
+                 region=None, radius_m: float = 10000.0) -> dict:
     """Write screen_dir/details.csv for the spots in screen_dir/candidates.csv; return counts."""
     screen_dir = Path(screen_dir)
     cands = pd.read_csv(screen_dir / "candidates.csv")
@@ -118,6 +131,7 @@ def tile_details(tile_id: str, dem_index: list, gpkg, protected_gpkg, screen_dir
         "track_m": np.round(nearest_distance(xs, ys, read_layers(gpkg, {**ROAD_LAYERS, **TRACK_LAYERS}, search))),
         "prot": bits,
         "prot_sites": site_ids,
+        "border": border_flags(xs, ys, region, tile_bounds(ix, iy, size, radius_m), radius_m),
     }, columns=DETAIL_COLUMNS)
     out.to_csv(screen_dir / "details.csv", index=False)
     return {"tile_id": tile_id, "spots": len(out), "protected": int((bits > 0).sum())}

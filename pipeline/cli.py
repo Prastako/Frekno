@@ -39,7 +39,8 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # No-argument commands
-    subparsers.add_parser("prep-region")
+    pr = subparsers.add_parser("prep-region")
+    pr.add_argument("--vusc", type=int, default=None)
     subparsers.add_parser("prep-buildings")
     subparsers.add_parser("prep-receptors")
     subparsers.add_parser("prep-facilities")
@@ -90,7 +91,7 @@ def run(args: argparse.Namespace) -> dict:
     if cmd == "prep-region":
         return prep_region(
             paths["stat_zip"],
-            settings["region"]["ruian_vusc_code"],
+            settings["region"]["ruian_vusc_code"] if args.vusc is None else args.vusc,
             settings["tiles"]["size_m"],
             reg,
         )
@@ -173,6 +174,8 @@ def run(args: argparse.Namespace) -> dict:
             paths["zabaged"],
             reg / "protected.gpkg",
             Path(args.screen_dir) if args.screen_dir else out / "tiles" / args.tile,
+            region=read_region_geojson(reg / "region.geojson") if (reg / "region.geojson").exists() else None,
+            radius_m=settings["receptors"]["radius_m"],
         )
 
     if cmd == "pack":
