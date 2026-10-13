@@ -9,6 +9,7 @@ from pipeline.settings import load_settings, data_paths
 from pipeline.region import prep_region, prep_buildings, prep_receptors, prep_dem_index, read_region_geojson, load_receptors
 from pipeline.dem import read_index_csv
 from pipeline.facilities import prep_facilities
+from pipeline.pack import pack_region
 from pipeline.tile_screen import screen_tile
 from pipeline.nm_tile import VARIANTS, nm_tile
 from pipeline.ruian_check import ruian_check
@@ -22,6 +23,7 @@ COMMANDS = (
     "screen-tile",
     "nm-tile",
     "ruian-check",
+    "pack",
 )
 
 
@@ -54,6 +56,11 @@ def build_parser() -> argparse.ArgumentParser:
     nt.add_argument("--n", type=int, default=None)
     nt.add_argument("--java-opts", default="")
     nt.add_argument("--timeout", type=float, default=None)
+
+    # pack
+    pk = subparsers.add_parser("pack")
+    pk.add_argument("--screen-dir", default=None)
+    pk.add_argument("--site-dir", default=None)
 
     return parser
 
@@ -141,6 +148,12 @@ def run(args: argparse.Namespace) -> dict:
             read_region_geojson(reg / "region.geojson"),
             paths["zabaged"],
             out / "ruian",
+        )
+
+    if cmd == "pack":
+        return pack_region(
+            Path(args.screen_dir) if args.screen_dir else out / "tiles",
+            Path(args.site_dir) if args.site_dir else out / "site",
         )
 
     raise ValueError(f"Unknown command: {cmd}")
