@@ -25,7 +25,7 @@ const field = (n) => form.elements.namedItem(n);
 const state = readHash();
 const cache = new Map();
 let index = null, api = null, results = [], metaById = new Map(), gen = 0, drawing = false, selected = null, prot = null, timer = 0;
-let status = ["", {}], nearBorder = false;
+let status = ["", {}], nearBorder = false, nearMilitary = false;
 
 function readHash() {
   const s = structuredClone(DEFAULTS);
@@ -149,7 +149,7 @@ function overview() {
 
 // Sites near the state border are left out of the data; say so when the area touches them.
 function noteBorder() {
-  $("#border-note").textContent = nearBorder ? t("border_hidden") : "";
+  $("#border-note").textContent = [nearBorder && t("border_hidden"), nearMilitary && t("military_hidden")].filter(Boolean).join(" ");
 }
 
 async function search() {
@@ -161,6 +161,7 @@ async function search() {
   setArea(api.map, state.area === "rect" ? state.rect : null);
   const metas = bbox ? index.tiles.filter((m) => intersects(m.bbox, bbox)) : index.tiles;
   nearBorder = Boolean(bbox || state.area === "all") && metas.some((m) => m.border_dropped > 0);
+  nearMilitary = Boolean(bbox || state.area === "all") && metas.some((m) => m.military_dropped > 0);
   noteBorder();
   const load = metas.filter((m) => m.spots > 0);
   if (state.area === "rect" && !bbox) return show([], "draw_hint");
