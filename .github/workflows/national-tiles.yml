@@ -61,9 +61,10 @@ jobs:
         run: |
           sudo mkdir -p /mnt/frekno && sudo chown "$USER" /mnt/frekno
           mkdir -p "$FREKNO_OUT/region" "$FREKNO_DATA/raw/dmr4g"
-          for f in region.geojson tiles.csv receptors.csv facilities.csv protected.gpkg zabaged_slim.gpkg; do
+          for f in region.geojson tiles.csv receptors.csv facilities.csv protected.gpkg zabaged_slim.gpkg.gz; do
             curl -fsSL --retry 3 -o "$FREKNO_OUT/region/$f" "$BASE/$f"
           done
+          gunzip "$FREKNO_OUT/region/zabaged_slim.gpkg.gz"
           for t in $(python -m pipeline.national neighbours ${{ matrix.group }}); do
             curl -fsSL --retry 3 -o "$FREKNO_DATA/raw/dmr4g/$t.tif" "$BASE/$t.tif" || rm -f "$FREKNO_DATA/raw/dmr4g/$t.tif"
           done
