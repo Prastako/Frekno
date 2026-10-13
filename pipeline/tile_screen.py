@@ -16,8 +16,9 @@ from pipeline.tiles import parse_tile_id, tile_bounds
 
 CANDIDATE_OUT_COLUMNS = [
     "candidate_id", "x", "y", "site_type", "forest_frac",
-    "n_home", "n_cottage", "worst_home_dba", "worst_cottage_dba",
-    "worst_home_63", "worst_cottage_63",
+    "n_home", "n_cottage", "n_facility",
+    "worst_home_dba", "worst_cottage_dba", "worst_facility_dba",
+    "worst_home_63", "worst_cottage_63", "worst_facility_63",
 ]
 
 
@@ -146,6 +147,7 @@ def screen_tile(
         "kept": c["stats"]["kept"],
         "receptors_home": int(np.sum(homes)),
         "receptors_cottage": int(np.sum(sub["type"] == "cottage")),
+        "receptors_facility": int(np.sum(sub["type"] == "facility")),
         "dem_sheets": stats["sheets"],
         "dem_nodata_cells": stats["nodata_cells"],
         "dem_min": dem_min,

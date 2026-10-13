@@ -27,6 +27,31 @@ def test_bearing_deg():
     np.testing.assert_array_almost_equal(brng, [0, 90, 180, 270])
 
 
+def test_select_with_facility():
+    """Select with facility receptors returns keys for home, cottage, and facility;
+    facility key holds facility indices; home result is unchanged."""
+    rx = np.array([-100, 100, 50, -100], dtype=float)
+    ry = np.array([500, 500, -200, -600], dtype=float)
+    rtype = np.array(["home", "home", "facility", "facility"])
+
+    result = select_receptors(0, 0, rx, ry, rtype, 10000, 5,
+                             [0, 1000, 2000, 4000, 7000, 10000])
+
+    assert "home" in result
+    assert "cottage" in result
+    assert "facility" in result
+    np.testing.assert_array_equal(result["facility"], [2, 3])
+    np.testing.assert_array_equal(result["home"], [0, 1])
+
+    # Compare with result when facility receptors are removed
+    rx_no_fac = np.array([-100, 100], dtype=float)
+    ry_no_fac = np.array([500, 500], dtype=float)
+    rtype_no_fac = np.array(["home", "home"])
+    result_no_fac = select_receptors(0, 0, rx_no_fac, ry_no_fac, rtype_no_fac,
+                                     10000, 5, [0, 1000, 2000, 4000, 7000, 10000])
+    np.testing.assert_array_equal(result["home"], result_no_fac["home"])
+
+
 def test_invalid_rings():
     """rings_m must end exactly at radius_m."""
     rx = np.array([0.0])
