@@ -1,0 +1,5 @@
+{
+  "type": "module",
+  "private": true,
+  "description": "Marks web/js as ES modules for the node tests. Not used by the browser."
+}
