@@ -21,6 +21,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pyogrio
+import shapely
 from pyproj import Geod, Transformer
 
 from pipeline.acoustics import A_WEIGHTING_DB, air_absorption_db_per_km, load_acoustics
@@ -174,11 +175,13 @@ def read_sites(protected_gpkg) -> pd.DataFrame:
     return sites.astype(str).sort_values("site_id", kind="stable").reset_index(drop=True)
 
 
-def pack_tile(tile_dir, site_dir, site_ids: np.ndarray, list_cap: int = 20) -> dict | None:
+def pack_tile(tile_dir, site_dir, site_ids: np.ndarray, list_cap: int = 20, military=None) -> dict | None:
     """Pack one screened tile folder into site_dir/tiles/<tile>.bin.gz; return its index entry (None without candidates).
 
     Spots flagged in details.csv as near the region edge (border = 1) are left out, because receptors beyond the
-    edge are missing; the entry counts them in border_dropped. A tile left without spots gets an entry without a file.
+    edge are missing; the entry counts them in border_dropped. Spots inside *military* (a geometry in EPSG:5514, the
+    military training areas) are left out too and counted in military_dropped. A tile left without spots gets an
+    entry without a file.
     """
     d = Path(tile_dir)
     cands = pd.read_csv(d / "candidates.csv")
@@ -191,17 +194,22 @@ def pack_tile(tile_dir, site_dir, site_ids: np.ndarray, list_cap: int = 20) -> d
     near = set()
     if "border" in details.columns:
         near = set(details.loc[details["border"].fillna(0).astype(int) > 0, "candidate_id"])
-    drop = cands["candidate_id"].isin(near)
-    cands = cands[~drop].reset_index(drop=True)
-    pairs = pairs[~pairs["candidate_id"].isin(near)]
-    details = details[~details["candidate_id"].isin(near)]
+    border = cands["candidate_id"].isin(near).to_numpy()
+    inside = np.zeros(len(cands), dtype=bool)
+    if military is not None:
+        inside = shapely.contains_xy(military, cands["x"].to_numpy(float), cands["y"].to_numpy(float)) & ~border
+    gone = set(cands.loc[border | inside, "candidate_id"])
+    cands = cands[~(border | inside)].reset_index(drop=True)
+    pairs = pairs[~pairs["candidate_id"].isin(gone)]
+    details = details[~details["candidate_id"].isin(gone)]
     ix, iy, tile_m = parse_tile_id(d.name)
     x0, y0, x1, y1 = tile_bounds(ix, iy, tile_m)
     lon, lat = _TO_WGS.transform([x0, x1, x1, x0], [y0, y0, y1, y1])
     outline = [[round(float(a), 5), round(float(b), 5)] for a, b in zip(lon, lat)]
     entry = {"id": d.name, "file": None, "spots": 0, "bytes": 0,
              "bbox": [min(p[0] for p in outline), min(p[1] for p in outline), max(p[0] for p in outline), max(p[1] for p in outline)],
-             "outline": outline, "ref_min_dba": None, "border_dropped": int(drop.sum())}
+             "outline": outline, "ref_min_dba": None, "border_dropped": int(border.sum()),
+             "military_dropped": int(inside.sum())}
     if len(cands) == 0:
         return entry
     rec = pack_records(cands, pairs, details, site_ids, list_cap)
