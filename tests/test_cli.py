@@ -120,9 +120,10 @@ def test_main_nm_tile_fail(tmp_path, monkeypatch):
 def test_main_pack(tmp_path, monkeypatch):
     """main() for pack delegates correctly and returns 0."""
 
-    def fake_pack_region(screen_dir, site_dir):
+    def fake_pack_region(screen_dir, site_dir, protected_gpkg, list_cap):
         fake_pack_region._screen_dir = screen_dir
         fake_pack_region._site_dir = site_dir
+        fake_pack_region._extra = (protected_gpkg, list_cap)
         return {"tiles": 1}
 
     monkeypatch.setattr(pipeline.cli, "pack_region", fake_pack_region)
@@ -136,6 +137,7 @@ def test_main_pack(tmp_path, monkeypatch):
     assert out == {"tiles": 1}
     assert fake_pack_region._screen_dir == tmp_path / "tiles"
     assert fake_pack_region._site_dir == tmp_path / "site"
+    assert fake_pack_region._extra == (tmp_path / "region" / "protected.gpkg", 20)
 
 
 def test_main_tile_details(tmp_path, monkeypatch):

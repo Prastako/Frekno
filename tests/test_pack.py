@@ -1,4 +1,7 @@
-"""Tests for pipeline.pack."""
+"""Tests for pipeline.pack (tile format FRK1 version 2)."""
+
+import gzip
+import json
 
 import numpy as np
 import pandas as pd
@@ -6,116 +9,84 @@ import pytest
 
 from pipeline import pack
 
-
-class TestSPOTSize:
-    def test_itemsize(self):
-        assert pack.SPOT.itemsize == 315
+SITE_IDS = np.array(["CP-000001", "N2-000002", "NS-000003"])
 
 
-class TestPackRecords:
-    @pytest.fixture
-    def cands(self):
-        return pd.DataFrame({
-            "candidate_id": [0, 1],
-            "x": [-740000.0, -740250.0],
-            "y": [-1050000.0, -1050000.0],
-            "site_type": ["open", "forest"],
-            "forest_frac": [0.0, 0.5],
-        })
-
-    @pytest.fixture
-    def pairs(self, cands):
-        rows = []
-        # Spot 0: seven "home" rows (ranks 1 to 7)
-        for rank in range(1, 8):
-            rows.append({
-                "candidate_id": 0,
-                "receptor_type": "home",
-                "rank": rank,
-                "receptor_id": f"h{rank}",
-                "rx": -740100.0 + rank * 10,
-                "ry": -1050100.0 + rank * 10,
-                "dist_m": 100.0 + rank * 10,
-                "bearing_deg": 45.0 + rank * 5,
-                "ref_level_dba": 55.0 - rank,
-                "a31": 20.0 + rank, "a63": 22.0 + rank, "a125": 24.0 + rank,
-                "a250": 26.0 + rank, "a500": 28.0 + rank, "a1k": 30.0 + rank,
-                "a2k": 32.0 + rank, "a4k": 34.0 + rank, "a8k": 36.0 + rank,
-            })
-        # Spot 0: two "campsite" rows sharing the same area key
-        for rank, rid in [(1, "zbg10_0"), (2, "zbg10_1")]:
-            rows.append({
-                "candidate_id": 0,
-                "receptor_type": "campsite",
-                "rank": rank,
-                "receptor_id": rid,
-                "rx": -739800.0,
-                "ry": -1049800.0,
-                "dist_m": 200.0,
-                "bearing_deg": 30.0,
-                "ref_level_dba": 50.0,
-                "a31": 10.0, "a63": 12.0, "a125": 14.0,
-                "a250": 16.0, "a500": 18.0, "a1k": 20.0,
-                "a2k": 22.0, "a4k": 24.0, "a8k": 26.0,
-            })
-        return pd.DataFrame(rows)
-
-    def test_spot0_home_count(self, cands, pairs):
-        rec = pack.pack_records(cands, pairs)
-        # Spot 0 has 7 home rows, K=5 limit -> 5
-        assert rec[0]["layers"]["n"][0] == 5  # home layer index 0
-
-    def test_spot0_campsite_count(self, cands, pairs):
-        rec = pack.pack_records(cands, pairs)
-        # zbg10_0 and zbg10_1 share area_key "zbg10", deduplicated -> 1
-        assert rec[0]["layers"]["n"][2] == 1  # campsite layer index 2
-
-    def test_spot1_no_receptors(self, cands, pairs):
-        rec = pack.pack_records(cands, pairs)
-        # Spot 1 has no pairs at all
-        for li in range(len(pack.LAYERS)):
-            assert rec[1]["layers"]["n"][li] == 0
+def make_tile(true_brgs, levels, list_len=None):
+    """One spot at a fixed point; one home receptor per (true bearing, ref level)."""
+    cands = pd.DataFrame({"candidate_id": [7], "x": [-740000.0], "y": [-1050000.0],
+                          "site_type": ["clearing"], "forest_frac": [0.4]})
+    north = pack.grid_north(cands["x"], cands["y"])[2][0]
+    rows = []
+    for rank, (brg, lev) in enumerate(zip(true_brgs, levels), start=1):
+        att = {k: 40.0 + rank for k in pack.BAND_KEYS}
+        rows.append({"candidate_id": 7, "receptor_type": "home", "rank": rank, "receptor_id": f"r{rank}",
+                     "dist_m": 1000.0 + rank, "bearing_deg": (brg - north) % 360.0, **att, "ref_level_dba": lev})
+    details = pd.DataFrame({"candidate_id": [7], "slope_pct": [3.4], "flat_m2": [12300], "forest_m": [0.0],
+                            "road_m": [512.0], "track_m": [97.0], "prot": [18], "prot_sites": ["N2-000002;NS-000003"]})
+    return cands, pd.DataFrame(rows), details
 
 
-class TestWriteRead:
-    @pytest.fixture
-    def records(self):
-        return pd.DataFrame({
-            "candidate_id": [0, 1],
-            "x": [-740000.0, -740250.0],
-            "y": [-1050000.0, -1050000.0],
-            "site_type": ["open", "forest"],
-            "forest_frac": [0.0, 0.5],
-        })
+def test_record_size():
+    assert pack.SPOT.itemsize == 406
 
-    @pytest.fixture
-    def pairs(self):
-        rows = []
-        for rank in range(1, 6):
-            rows.append({
-                "candidate_id": 0,
-                "receptor_type": "home",
-                "rank": rank,
-                "receptor_id": f"h{rank}",
-                "rx": -740100.0,
-                "ry": -1050100.0,
-                "dist_m": 100.0,
-                "bearing_deg": 45.0,
-                "ref_level_dba": 55.0,
-                "a31": 20.0, "a63": 22.0, "a125": 24.0,
-                "a250": 26.0, "a500": 28.0, "a1k": 30.0,
-                "a2k": 32.0, "a4k": 34.0, "a8k": 36.0,
-            })
-        return pd.DataFrame(rows)
 
-    def test_roundtrip(self, records, pairs, tmp_path):
-        rec = pack.pack_records(records, pairs)
-        tile_path = tmp_path / "test.bin"
-        size = pack.write_tile(rec, tile_path)
-        assert size > 0
-        head, rec2 = pack.read_tile(tile_path)
-        assert head["spots"] == 2
-        assert head["magic"] == "FRK1"
-        assert len(rec2) == len(rec)
-        assert rec2["lon"][0] == rec["lon"][0]
-        assert rec2["lon"][1] == rec["lon"][1]
+def test_details_and_position():
+    cands, pairs, details = make_tile([20.0], [50.0])
+    rec = pack.pack_records(cands, pairs, details, SITE_IDS)
+    assert rec["x"][0] == -740000 and rec["y"][0] == -1050000
+    assert (rec["site"][0], rec["forest"][0], rec["slope"][0], rec["prot"][0]) == (1, 40, 3, 18)
+    assert (rec["flat"][0], rec["forest_m"][0], rec["road_m"][0], rec["track_m"][0]) == (12300, 0, 512, 97)
+    assert list(rec["sites"][0]) == [1, 2, pack.NO_SITE, pack.NO_SITE]
+
+
+def test_one_slot_per_sector_loudest_first():
+    cands, pairs, details = make_tile([20.0, 25.0, 110.0, 200.0], [60.0, 59.0, 55.0, 50.0])
+    rec = pack.pack_records(cands, pairs, details, SITE_IDS)
+    home = rec["layers"][0, 0]
+    assert home["n"] == 3
+    assert list(home["r"]["dist"][:3]) == [1001, 1003, 1004]
+    assert list(home["r"]["brg"][:3] >> 5) == [0, 2, 4]
+    assert home["r"]["att"][0][0] == 82  # 41 dB in 0.5 dB steps
+    assert home["floor"] == pack.NO_FLOOR
+
+
+def test_floor_when_list_full():
+    cands, pairs, details = make_tile([20.0, 25.0], [60.0, 52.3])
+    rec = pack.pack_records(cands, pairs, details, SITE_IDS, list_cap=2)
+    assert rec["layers"][0, 0]["floor"] == 30  # (60.0 - 52.3) / 0.25 rounded down
+
+
+def test_unknown_site_id_raises():
+    cands, pairs, details = make_tile([20.0], [50.0])
+    details["prot_sites"] = ["XX-999999"]
+    with pytest.raises(ValueError):
+        pack.pack_records(cands, pairs, details, SITE_IDS)
+
+
+def test_pack_region(tmp_path):
+    import geopandas as gpd
+    from shapely.geometry import Point
+    sites = gpd.GeoDataFrame({"site_id": ["NS-000003", "CP-000001", "N2-000002"], "category": ["chko", "contract", "evl"],
+                              "name": ["C", "A", "B"]}, geometry=[Point(0, 0)] * 3, crs="EPSG:5514")
+    gpkg = tmp_path / "protected.gpkg"
+    sites.to_file(gpkg, layer="protected", driver="GPKG")
+    cands, pairs, details = make_tile([20.0, 110.0], [60.0, 55.0])
+    for t in ("home", "cottage", "campsite", "care", "recreation"):
+        cands[f"worst_{t}_dba"] = 60.0 if t == "home" else np.nan
+    tile = tmp_path / "screen" / "20k_-37_-53"
+    tile.mkdir(parents=True)
+    cands.to_csv(tile / "candidates.csv", index=False)
+    pairs.to_csv(tile / "pairs.csv", index=False)
+    details.to_csv(tile / "details.csv", index=False)
+    out = pack.pack_region(tmp_path / "screen", tmp_path / "site", gpkg)
+    assert out == {"tiles": 1, "spots": 1, "bytes": (tmp_path / "site" / "tiles" / "20k_-37_-53.bin.gz").stat().st_size}
+    raw = (tmp_path / "site" / "tiles" / "20k_-37_-53.bin.gz").read_bytes()
+    assert gzip.decompress(raw)[:4] == b"FRK1"
+    head, rec = pack.read_tile(tmp_path / "site" / "tiles" / "20k_-37_-53.bin.gz")
+    assert head["version"] == 2 and head["spots"] == 1 and rec["layers"][0, 0]["n"] == 2
+    index = json.loads((tmp_path / "site" / "index.json").read_text(encoding="utf-8"))
+    assert index["version"] == 2 and index["tiles"][0]["ref_min_dba"] == 60.0
+    assert set(index["model"]["source_1m_db"]) == {"small", "medium", "large"}
+    prot = json.loads((tmp_path / "site" / "protected.json").read_text(encoding="utf-8"))
+    assert [s[0] for s in prot["sites"]] == ["CP-000001", "N2-000002", "NS-000003"]

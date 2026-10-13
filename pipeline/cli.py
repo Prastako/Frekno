@@ -179,6 +179,8 @@ def run(args: argparse.Namespace) -> dict:
         return pack_region(
             Path(args.screen_dir) if args.screen_dir else out / "tiles",
             Path(args.site_dir) if args.site_dir else out / "site",
+            reg / "protected.gpkg",
+            settings["receptors"]["worst_per_type_for_nm"],
         )
 
     raise ValueError(f"Unknown command: {cmd}")
