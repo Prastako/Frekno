@@ -9,7 +9,7 @@ import rasterio
 
 from pipeline.candidates import build_candidates
 from pipeline.dem import mosaic, sheets_for_bounds
-from pipeline.landcover import landcover_masks
+from pipeline.landcover import hard_mask, landcover_masks
 from pipeline.screening import PAIR_COLUMNS, screen_candidates
 from pipeline.settings import screening_cfg
 from pipeline.tiles import parse_tile_id, tile_bounds
@@ -121,6 +121,7 @@ def screen_tile(
         c["x"], c["y"],
         sub["x"], sub["y"], sub["type"], sub["id"],
         screening_cfg(settings),
+        hard=hard_mask(masks),
     )
     t_screening = time.perf_counter() - t3
 

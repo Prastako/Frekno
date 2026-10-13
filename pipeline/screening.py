@@ -5,6 +5,7 @@ import math
 import numpy as np
 
 from pipeline.acoustics import A_WEIGHTING_DB, air_absorption_db_per_km, exact_centre_hz
+from pipeline.cnossos_path import boundary_f
 from pipeline.freefield import levels_for
 from pipeline.profile import barrier_db, line_points, sample_dem, single_edge
 from pipeline.select import TYPES, bearing_deg, select_receptors
@@ -33,8 +34,24 @@ def prepare_dem(dem, nodata=-9999.0) -> np.ndarray:
     return arr
 
 
+def _ground_factor(hard, transform, xs, ys, g_hard, g_soft):
+    """Ground factor at points: g_hard on hard cells, g_soft elsewhere (nearest cell; outside the grid = g_soft)."""
+    xs = np.asarray(xs, dtype=np.float64)
+    ys = np.asarray(ys, dtype=np.float64)
+    out = np.full(xs.shape, float(g_soft))
+    if hard is None:
+        return out
+    col = np.floor((xs - transform.c) / transform.a).astype(np.int64)
+    row = np.floor((ys - transform.f) / transform.e).astype(np.int64)
+    ok = (row >= 0) & (row < hard.shape[0]) & (col >= 0) & (col < hard.shape[1])
+    out[ok] = np.where(hard[row[ok], col[ok]], float(g_hard), float(g_soft))
+    return out
+
+
 def pair_attenuation(dem, transform, cx, cy, rx, ry,
-                     source_h, receptor_h, n_points, alpha):
+                     source_h, receptor_h, n_points, alpha,
+                     method="iso", hard=None, g_hard=0.0, g_soft=1.0,
+                     ground_credit=False, return_blocked=False):
     """Attenuation in dB from 1 m to each receptor.
 
     Parameters
@@ -89,6 +106,18 @@ def pair_attenuation(dem, transform, cx, cy, rx, ry,
     z = sample_dem(dem, transform, xs.flatten(), ys.flatten(), nodata=None)
     z = z.reshape(t.shape)
 
+    if method == "cnossos":
+        g_pts = _ground_factor(hard, transform, xs, ys, g_hard, g_soft)
+        g_s = np.full(P, _ground_factor(hard, transform, [cx], [cy], g_hard, g_soft)[0])
+        g_r = _ground_factor(hard, transform, rx, ry, g_hard, g_soft)
+        A, blocked, a_ground = boundary_f(t, z, g_pts, d, zs - source_h, zr - receptor_h,
+                                          source_h, receptor_h, g_s, g_r, exact_centre_hz(),
+                                          ground_credit=ground_credit)
+        A[:, 0] = np.minimum(a_ground[:, 0], 0.0)  # no terrain credit at 31.5 Hz
+        d3 = np.maximum(np.hypot(d, zr - zs), 1.0)[:, np.newaxis]
+        result = 20.0 * np.log10(d3) + alpha * (d3 - 1.0) / 1000.0 + A
+        return (result, blocked) if return_blocked else result
+
     # Single-edge diffraction
     delta, d_ss, d_sr = single_edge(t, z, np.maximum(d, 1e-9), zs, zr)
 
@@ -100,11 +129,12 @@ def pair_attenuation(dem, transform, cx, cy, rx, ry,
     dd = np.maximum(d, 1.0)[:, np.newaxis]  # (P, 1) for (P, 9) output
     free = 20.0 * np.log10(dd) + alpha * (dd - 1.0) / 1000.0
 
-    return free + bar
+    result = free + bar
+    return (result, delta > 0) if return_blocked else result
 
 
 def screen_candidates(dem, transform, cand_x, cand_y,
-                      rec_x, rec_y, rec_type, rec_id, cfg):
+                      rec_x, rec_y, rec_type, rec_id, cfg, hard=None):
     """Screen candidate spots against nearby receptors.
 
     Parameters
@@ -173,7 +203,10 @@ def screen_candidates(dem, transform, cand_x, cand_y,
 
             att = pair_attenuation(
                 dem, transform, cx, cy, t_rx, t_ry,
-                cfg["source_h"], cfg["receptor_h"], cfg["n_points"], alpha
+                cfg["source_h"], cfg["receptor_h"], cfg["n_points"], alpha,
+                method=cfg.get("method", "iso"), hard=hard,
+                g_hard=cfg.get("g_hard", 0.0), g_soft=cfg.get("g_soft", 1.0),
+                ground_credit=cfg.get("ground_credit", False),
             )
 
             # Band levels at each receptor

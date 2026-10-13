@@ -51,4 +51,8 @@ def screening_cfg(settings: dict) -> dict:
         "receptor_h": float(receptors["height_m"]),
         "n_points": int(screening["n_points"]),
         "keep_per_type": int(receptors["worst_per_type_for_nm"]),
+        "method": screening.get("method", "iso"),
+        "g_hard": float(settings["ground"]["g_hard"]),
+        "g_soft": float(settings["ground"]["g_soft"]),
+        "ground_credit": bool(screening.get("ground_credit", False)),
     }
