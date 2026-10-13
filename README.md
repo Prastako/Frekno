@@ -59,7 +59,7 @@ Three GitHub Actions workflows, each started by hand:
 - `national tiles` takes that tag, screens the tiles in groups, adds the spot details, packs the website data and publishes `site-<date>` with `site-data.tar.gz`.
 - `site` publishes `web/` with a `site-<date>` release on GitHub Pages.
 
-Sites within 10 km of the state border are left out of the website data and the site says so: homes abroad are not in the receptor data, so estimates there are imprecise. The same steps run locally with `python -m pipeline.national` and `python -m pipeline.cli`.
+Sites within 10 km of the state border are left out of the website data and the site says so: homes abroad are not in the receptor data, so estimates there are imprecise. The four military training areas (Boletice, Březina, Hradiště, Libavá) are left out as well, because access to them is restricted by the Ministry of Defence. The same steps run locally with `python -m pipeline.national` and `python -m pipeline.cli`.
 
 ## Licences and data
 
