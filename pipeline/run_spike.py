@@ -11,7 +11,7 @@ from pipeline.metrics import CSV_COLUMNS, run_step
 from pipeline.region import read_tiles_csv
 from pipeline.settings import ROOT, data_paths, load_settings
 
-PREP_COMMANDS = ["prep-region", "prep-buildings", "prep-receptors", "prep-dem-index"]
+PREP_COMMANDS = ["prep-region", "prep-buildings", "prep-receptors", "prep-facilities", "prep-dem-index"]
 STAGES = ("prep", "screen", "nm", "ruian", "merge")
 
 

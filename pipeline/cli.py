@@ -8,6 +8,7 @@ from pathlib import Path
 from pipeline.settings import load_settings, data_paths
 from pipeline.region import prep_region, prep_buildings, prep_receptors, prep_dem_index, read_region_geojson, load_receptors
 from pipeline.dem import read_index_csv
+from pipeline.facilities import prep_facilities
 from pipeline.tile_screen import screen_tile
 from pipeline.nm_tile import VARIANTS, nm_tile
 from pipeline.ruian_check import ruian_check
@@ -16,6 +17,7 @@ COMMANDS = (
     "prep-region",
     "prep-buildings",
     "prep-receptors",
+    "prep-facilities",
     "prep-dem-index",
     "screen-tile",
     "nm-tile",
@@ -34,6 +36,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("prep-region")
     subparsers.add_parser("prep-buildings")
     subparsers.add_parser("prep-receptors")
+    subparsers.add_parser("prep-facilities")
     subparsers.add_parser("prep-dem-index")
     subparsers.add_parser("ruian-check")
 
@@ -85,6 +88,14 @@ def run(args: argparse.Namespace) -> dict:
         return prep_receptors(
             reg / "buildings.csv",
             reg / "receptors.csv",
+        )
+
+    if cmd == "prep-facilities":
+        return prep_facilities(
+            paths["zabaged"],
+            read_region_geojson(reg / "region.geojson"),
+            settings["receptors"]["radius_m"],
+            reg / "facilities.csv",
         )
 
     if cmd == "prep-dem-index":
