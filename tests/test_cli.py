@@ -62,6 +62,28 @@ def test_main_prep_dem_index(tmp_path, monkeypatch):
     assert fake_prep_dem_index._out_csv == tmp_path / "region" / "dem_index.csv"
 
 
+def test_main_prep_facilities(tmp_path, monkeypatch):
+    """main() for prep-facilities delegates correctly and returns 0."""
+
+    def fake_prep_facilities(zabaged, region, radius_m, out_csv):
+        fake_prep_facilities._region = region
+        fake_prep_facilities._out_csv = out_csv
+        return {"areas": 1}
+
+    monkeypatch.setattr(pipeline.cli, "prep_facilities", fake_prep_facilities)
+    monkeypatch.setattr(pipeline.cli, "read_region_geojson", lambda path: "R")
+    captured = StringIO()
+    monkeypatch.setattr("sys.stdout", captured)
+
+    ret = pipeline.cli.main(["--out", str(tmp_path), "prep-facilities"])
+    assert ret == 0
+
+    out = json.loads(captured.getvalue().strip())
+    assert out == {"areas": 1}
+    assert fake_prep_facilities._region == "R"
+    assert fake_prep_facilities._out_csv == tmp_path / "region" / "facilities.csv"
+
+
 def test_main_nm_tile_fail(tmp_path, monkeypatch):
     """main() returns 1 when nm_tile reports ok=False."""
 
