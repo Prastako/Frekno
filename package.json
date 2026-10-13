@@ -3,6 +3,6 @@
   "private": true,
   "description": "Lets the AI-Workspace watcher and foreman run the tests with npm test: the website's node tests, then pytest.",
   "scripts": {
-    "test": "node --test web/tests/frk.test.mjs web/tests/model.test.mjs && C:\\AI-Workspace\\tools\\python313\\python.exe -m pytest -q -p no:cacheprovider"
+    "test": "node --test web/tests/frk.test.mjs web/tests/model.test.mjs web/tests/transit.test.mjs && C:\\AI-Workspace\\tools\\python313\\python.exe -m pytest -q -p no:cacheprovider"
   }
 }
