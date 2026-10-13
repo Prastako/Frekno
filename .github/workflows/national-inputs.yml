@@ -36,7 +36,10 @@ jobs:
           python -m pipeline.cli prep-protected
           python -m pipeline.cli prep-dem-index
       - name: Release files
-        run: python -m pipeline.national inputs /mnt/frekno/inputs && df -h /mnt
+        run: |
+          python -m pipeline.national inputs /mnt/frekno/inputs
+          gzip -1 /mnt/frekno/inputs/zabaged_slim.gpkg
+          ls -la /mnt/frekno/inputs && df -h /mnt
       - name: Publish
         run: |
           tag="inputs-$(date -u +%Y%m%d-%H%M)"
