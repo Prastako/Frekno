@@ -14,6 +14,7 @@ from pathlib import Path
 import pyogrio
 import rasterio
 import requests
+import shapely
 
 from pipeline.details import FOREST_LAYERS, ROAD_LAYERS, TRACK_LAYERS
 from pipeline.dem import mosaic, read_index_csv, sheets_for_bounds
@@ -21,7 +22,7 @@ from pipeline.fetch.atom import parse_service_feed, zip_url
 from pipeline.fetch.download import download, download_many
 from pipeline.landcover import CLASSES
 from pipeline.pack import pack_tile, read_sites, write_index
-from pipeline.region import read_tiles_csv
+from pipeline.region import read_region_geojson, read_tiles_csv, write_region_geojson
 from pipeline.settings import data_paths, load_settings
 from pipeline.tiles import parse_tile_id, tile_bounds, tile_id
 
@@ -39,6 +40,16 @@ def obec_codes(stat_zip) -> list[str]:
     path = f"/vsizip/{Path(stat_zip).resolve().as_posix()}/1/OBCE_P.shp"
     df = pyogrio.read_dataframe(path, read_geometry=False, columns=["KOD"])
     return sorted({str(int(v)) for v in df["KOD"]})
+
+
+def military_areas(stat_zip, dest) -> int:
+    """Write the military training areas (OBCE_P rows with STATUS_KOD 1) of the RÚIAN state file to *dest* as one
+    GeoJSON feature in EPSG:5514; return how many there are."""
+    path = f"/vsizip/{Path(stat_zip).resolve().as_posix()}/1/OBCE_P.shp"
+    df = pyogrio.read_dataframe(path, columns=["STATUS_KOD"])
+    areas = df[df["STATUS_KOD"].astype(int) == 1]
+    write_region_geojson(shapely.union_all(areas.geometry.to_numpy()), dest)
+    return len(areas)
 
 
 def zabaged_zip_url(feed_text: str) -> str:
@@ -122,9 +133,10 @@ def prep_inputs(settings: dict, dest) -> dict:
     tiles = [r["tile_id"] for r in read_tiles_csv(reg / "tiles.csv")]
     chunks = dem_chunks(read_index_csv(reg / "dem_index.csv"), tiles, settings["terrain"]["screening_resolution_m"], dest / "dem")
     layers = slim_zabaged(paths["zabaged"], dest / "zabaged_slim.gpkg")
+    military = military_areas(paths["data_dir"] / "raw" / "ruian" / "stat" / "1.zip", dest / "military.geojson")
     for name in REGION_FILES:
         shutil.copy2(reg / name, dest / name)
-    return {"tiles": len(tiles), "dem_chunks": chunks, "zabaged_layers": layers}
+    return {"tiles": len(tiles), "dem_chunks": chunks, "zabaged_layers": layers, "military_areas": military}
 
 
 def tile_groups(tiles_csv, size: int) -> list[str]:
@@ -165,7 +177,9 @@ def main(argv=None) -> int:
         res = " ".join(sorted({n for t in args.tiles for n in neighbours(t)}))
     elif args.command == "pack-tile":
         ids = read_sites(reg / "protected.gpkg")["site_id"].to_numpy()
-        res = pack_tile(paths["out_dir"] / "tiles" / args.tile, args.site_dir, ids, settings["receptors"]["worst_per_type_for_nm"])
+        mil = reg / "military.geojson"
+        res = pack_tile(paths["out_dir"] / "tiles" / args.tile, args.site_dir, ids, settings["receptors"]["worst_per_type_for_nm"],
+                        read_region_geojson(mil) if mil.exists() else None)
         if res is not None:
             meta = Path(args.site_dir) / "meta" / f"{args.tile}.json"
             meta.parent.mkdir(parents=True, exist_ok=True)
