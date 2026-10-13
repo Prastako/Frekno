@@ -21,7 +21,7 @@ height_m = 4.0
 unclear_rule = "house_number"
 selection_sector_deg = 5
 selection_rings_m = [0, 1000, 2000, 4000, 7000, 10000]
-selection_per_bin = 1  # receptors evaluated per type, sector and ring, nearest first
+selection_per_bin = 3  # receptors evaluated per type, sector and ring, nearest first
 worst_per_type_for_nm = 20
 
 [source]
