@@ -1,13 +1,16 @@
 name: site
 
-# Publishes the website (web/) with a site data release on GitHub Pages. Run by hand on Jan's go.
+# Publishes the website (web/) with a site data release and this weekend's public transport stops on GitHub Pages.
+# Runs by hand and every Thursday, so the stops show the coming weekend.
 
 on:
   workflow_dispatch:
     inputs:
       site_tag:
-        description: Release with the website data (site-YYYYMMDD-HHMM)
-        required: true
+        description: Release with the website data (site-YYYYMMDD-HHMM); empty means the newest
+        required: false
+  schedule:
+    - cron: "17 3 * * 4"
 
 permissions:
   contents: read
@@ -24,14 +27,27 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: "python -m pip install --only-binary=:all: -r requirements.txt"
       - name: Assemble
         run: |
+          tag="${{ inputs.site_tag }}"
+          if [ -z "$tag" ]; then
+            tag=$(gh api "repos/${{ github.repository }}/releases?per_page=50" --jq '[.[] | select(.tag_name | startswith("site-"))][0].tag_name')
+          fi
+          echo "Site data: $tag" >> "$GITHUB_STEP_SUMMARY"
           mkdir -p _site/data
           cp -r web/index.html web/css web/js _site/
-          curl -fsSL --retry 3 -o /tmp/site-data.tar.gz "https://github.com/${{ github.repository }}/releases/download/${{ inputs.site_tag }}/site-data.tar.gz"
+          curl -fsSL --retry 3 -o /tmp/site-data.tar.gz "https://github.com/${{ github.repository }}/releases/download/$tag/site-data.tar.gz"
           tar -xzf /tmp/site-data.tar.gz -C _site/data
+      - name: Public transport
+        run: python -m pipeline.transit _site/data/stops.json --feeds-dir /tmp/transit | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
