@@ -63,3 +63,36 @@ def test_invalid_rings():
         assert False, "expected ValueError"
     except ValueError:
         pass
+
+
+def test_per_bin_selection():
+    """Four homes due north at 300, 100, 200, 100 m (idx 0-3) and one at 1500 m (idx 4).
+
+    Rings [0, 1500, 2000] put the two 100 m homes in ring 0,
+    the 200 m and 300 m homes in ring 1, and the 1500 m home in ring 2.
+    """
+    rx = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+    ry = np.array([300.0, 100.0, 200.0, 100.0, 1500.0])
+    rtype = np.array(["home", "home", "home", "home", "home"])
+
+    result1 = select_receptors(0, 0, rx, ry, rtype, 2000, 90, [0, 1500, 2000], per_bin=1)
+    np.testing.assert_array_equal(result1["home"], [1, 4])
+
+    result2 = select_receptors(0, 0, rx, ry, rtype, 2000, 90, [0, 1500, 2000], per_bin=2)
+    np.testing.assert_array_equal(result2["home"], [1, 3, 4])
+
+    result3 = select_receptors(0, 0, rx, ry, rtype, 2000, 90, [0, 1500, 2000], per_bin=3)
+    np.testing.assert_array_equal(result3["home"], [1, 3, 2, 4])
+
+
+def test_per_bin_zero_raises():
+    """per_bin = 0 raises ValueError."""
+    rx = np.array([0.0])
+    ry = np.array([500.0])
+    rtype = np.array(["home"])
+
+    try:
+        select_receptors(0, 0, rx, ry, rtype, 1000, 90, [0, 1000], per_bin=0)
+        assert False, "expected ValueError"
+    except ValueError:
+        pass

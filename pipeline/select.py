@@ -10,8 +10,8 @@ def bearing_deg(cx, cy, rx, ry):
     return np.degrees(np.arctan2(rx - cx, ry - cy)) % 360
 
 
-def select_receptors(cx, cy, rx, ry, rtype, radius_m, sector_deg, rings_m):
-    """Pick one nearest receptor per type per (sector, ring) bin.
+def select_receptors(cx, cy, rx, ry, rtype, radius_m, sector_deg, rings_m, per_bin=1):
+    """Pick the per_bin nearest receptors per type per (sector, ring) bin.
 
     Parameters
     ----------
@@ -20,18 +20,21 @@ def select_receptors(cx, cy, rx, ry, rtype, radius_m, sector_deg, rings_m):
     rx, ry : array-like
         Receptor coordinates.
     rtype : array-like of str
-        Receptor type labels (e.g. "home", "cottage").
+        Receptor type labels (values of TYPES).
     radius_m : float
         Maximum evaluation radius.
     sector_deg : float
         Azimuth sector width in degrees (must divide 360 without remainder).
     rings_m : sequence of float
         Ring boundaries starting at 0, strictly increasing, ending at radius_m.
+    per_bin : int
+        Receptors kept per type and bin, nearest first (ties: smaller index).
 
     Returns
     -------
     dict[str, np.ndarray]
-        Maps each type in TYPES to a sorted array of selected receptor indices.
+        Maps each type in TYPES to an array of selected receptor indices,
+        sorted by distance (ties: smaller index).
     """
     rings_m = np.asarray(rings_m)
 
@@ -44,6 +47,8 @@ def select_receptors(cx, cy, rx, ry, rtype, radius_m, sector_deg, rings_m):
         raise ValueError("last element of rings_m must equal radius_m")
     if sector_deg <= 0 or 360 % sector_deg != 0:
         raise ValueError("sector_deg must be positive and divide 360")
+    if int(per_bin) != per_bin or per_bin < 1:
+        raise ValueError("per_bin must be a whole number of at least 1")
 
     nsectors = int(360 / sector_deg)
     nrings = len(rings_m) - 1
@@ -52,55 +57,21 @@ def select_receptors(cx, cy, rx, ry, rtype, radius_m, sector_deg, rings_m):
     ry = np.asarray(ry, dtype=float)
     rtype = np.asarray(rtype)
 
-    # distances from candidate to each receptor
     distances = np.hypot(rx - cx, ry - cy)
-
-    # within-radius mask
-    within = distances <= radius_m
-
-    # bearing (degrees clockwise from north) for included receptors
-    brng = bearing_deg(cx, cy, rx, ry)
-
-    # sector indices: floor(bearing / sector_deg)
-    sectors = (brng / sector_deg).astype(int)
-
-    # ring indices: i such that rings_m[i] <= distance < rings_m[i+1]
-    # distance == last edge belongs to the last ring
+    sectors = (bearing_deg(cx, cy, rx, ry) / sector_deg).astype(int)
     rings = np.searchsorted(rings_m, distances, side="right") - 1
-
-    # flat bin = sector * nrings + ring
     bins = sectors * nrings + rings
-    max_bins = nsectors * nrings
+    usable = (distances <= radius_m) & (bins < nsectors * nrings)
 
-    # per-type selected indices (one per type per bin, nearest wins, ties: smaller index)
     selected = {}
     for t in TYPES:
-        mask = within & (rtype == t)
-        idx = np.flatnonzero(mask)
-        if idx.size == 0:
-            selected[t] = np.array([], dtype=int)
-            continue
-
-        dist = distances[idx]
-        b = bins[idx]
-
-        # initialise: -1 means no receptor placed in this bin
-        best = np.full(max_bins, -1, dtype=int)
-        best_dist = np.full(max_bins, np.inf)
-
-        # vectorised placement: scan positions 0..len(idx)-1 so argmin prefers smaller array index
-        for i in range(len(idx)):
-            bi = b[i]
-            if bi < max_bins and dist[i] < best_dist[bi]:
-                best[bi] = i
-                best_dist[bi] = dist[i]
-
-        # collect placed indices
-        placed = best[best >= 0]
-        indices = idx[placed]
-
-        # sort by distance (ties: smaller original index)
-        order = np.lexsort((indices, distances[indices]))
-        selected[t] = indices[order]
+        idx = np.flatnonzero(usable & (rtype == t))
+        # order by bin, then distance, then index; keep the first per_bin of each bin
+        order = idx[np.lexsort((idx, distances[idx], bins[idx]))]
+        b = bins[order]
+        start = np.flatnonzero(np.r_[True, b[1:] != b[:-1]])
+        rank = np.arange(b.size) - np.repeat(start, np.diff(np.r_[start, b.size]))
+        chosen = order[rank < per_bin]
+        selected[t] = chosen[np.lexsort((chosen, distances[chosen]))]
 
     return selected
