@@ -13,7 +13,7 @@ const ACCESS = { any: null, track100: { kind: "track", max: 100 }, track300: { k
 const LAYER_KEYS = ["home", "cottage", "campsite", "care", "recreation"];
 const DEFAULTS = { cls: "medium", character: "very_bass_heavy", level: 99, distance: 20, cardioid: false, tier: "night45", goal: 40,
   perLayer: false, lt: [40, 40, 40, 40, 40], layers: [1, 1, 1, 1, 1], sites: [0, 1, 2], flat: 0, access: "any",
-  protect: "flag", forestLaw: false, area: "view", rect: null, view: null, base: "night" };
+  protect: "flag", forestLaw: false, border: true, area: "view", rect: null, view: null, base: "night" };
 const CHOICES = { cls: ["small", "medium", "large", "custom"], character: ["balanced", "bass_heavy", "very_bass_heavy"],
   tier: ["inaudible", "cz35", "night45", "custom"], access: Object.keys(ACCESS), protect: Object.keys(PROTECT),
   area: ["view", "rect", "all"], base: ["night", "topo", "orto"], flat: [0, 2000, 5000, 10000, 20000] };
@@ -60,7 +60,7 @@ const clamp = (v, lo, hi, d) => (Number.isFinite(Number(v)) && v !== "" ? Math.m
 function fillForm() {
   for (const k of ["cls", "character", "access", "protect", "tier"]) field(k).value = state[k];
   for (const k of ["level", "distance", "goal", "flat"]) field(k).value = String(state[k]);
-  for (const k of ["cardioid", "perLayer", "forestLaw"]) field(k).checked = state[k];
+  for (const k of ["cardioid", "perLayer", "forestLaw", "border"]) field(k).checked = state[k];
   form.querySelectorAll("[name=layer]").forEach((el, l) => { el.checked = Boolean(state.layers[l]); });
   form.querySelectorAll(".lt").forEach((el, l) => { el.value = String(state.lt[l]); });
   form.querySelectorAll("[name=site]").forEach((el) => { el.checked = state.sites.includes(Number(el.value)); });
@@ -72,7 +72,7 @@ function readForm() {
   state.distance = clamp(field("distance").value, 1, 200, 20);
   state.goal = clamp(field("goal").value, 15, 70, 40);
   state.flat = Number(field("flat").value);
-  for (const k of ["cardioid", "perLayer", "forestLaw"]) state[k] = field(k).checked;
+  for (const k of ["cardioid", "perLayer", "forestLaw", "border"]) state[k] = field(k).checked;
   state.layers = [...form.querySelectorAll("[name=layer]")].map((el) => (el.checked ? 1 : 0));
   state.lt = [...form.querySelectorAll(".lt")].map((el) => clamp(el.value, 15, 70, 40));
   state.sites = [...form.querySelectorAll("[name=site]:checked")].map((el) => Number(el.value));
@@ -146,7 +146,8 @@ async function search() {
   byId = new Map(tiles.map((x) => [x.id, x.t]));
   const all = rank(tiles, makeContext(index, rig(), opts()), {
     sites: state.sites, minFlat: state.flat, access: ACCESS[state.access] ?? null,
-    excludeProt: PROTECT[state.protect] ?? 0, forestLaw: state.forestLaw, bbox: state.area === "all" ? null : bbox,
+    excludeProt: (PROTECT[state.protect] ?? 0) | (state.border ? index.border_bit ?? 128 : 0), forestLaw: state.forestLaw,
+    bbox: state.area === "all" ? null : bbox,
   });
   show(all, all.length ? "count" : "empty", { n: num(all.length, 0), shown: Math.min(all.length, MAX_LIST) });
 }
@@ -174,7 +175,8 @@ const badge = (sc) => `<span class="score" style="--c:${SCORE_COLORS[sc - 1]};--
 function loudestText(r) {
   if (r.layer < 0) return "";
   const s0 = slots(byId.get(r.tile), r.i, r.layer)[0];
-  return t("at_loudest", { l: num(r.level), layer: t(`layer_${LAYER_KEYS[r.layer]}`).toLowerCase(), d: km(s0.dist), dir: dir(deg(s0.brg)) });
+  const text = t("at_loudest", { l: num(r.level), layer: t(`layer_${LAYER_KEYS[r.layer]}`).toLowerCase(), d: km(s0.dist), dir: dir(deg(s0.brg)) });
+  return spot(byId.get(r.tile), r.i).prot & 128 ? `${text}; ${t("border_short")}` : text;
 }
 
 function listItem(r, k) {
@@ -217,6 +219,7 @@ async function openPanel(k, fly) {
     t("dist", { road: meters(s.roadM), track: meters(s.trackM), forest: meters(s.forestM) }),
   ];
   if (s.forestM <= 50) facts.push(t("forest_flag"));
+  if (s.prot & 128) facts.push(t("border_note"));
   const meter = Array.from({ length: 10 }, (_, j) => `<i class="${j < r.score ? "on" : ""}${j === 5 ? " goal" : ""}"></i>`).join("");
   const el = $("#panel");
   el.innerHTML = `<button type="button" class="x" aria-label="${t("close")}">×</button>
