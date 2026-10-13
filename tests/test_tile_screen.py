@@ -143,6 +143,13 @@ def test_tile_parts():
     assert buf == (-1000, -1000, 3000, 3000)
 
 
+def test_candidate_out_columns_have_facility():
+    """CANDIDATE_OUT_COLUMNS includes facility-related columns."""
+    assert "n_facility" in CANDIDATE_OUT_COLUMNS
+    assert "worst_facility_dba" in CANDIDATE_OUT_COLUMNS
+    assert "worst_facility_63" in CANDIDATE_OUT_COLUMNS
+
+
 # ── receptors_in_bounds ──────────────────────────────────────────────────
 
 
