@@ -90,3 +90,27 @@ def test_pack_region(tmp_path):
     assert set(index["model"]["source_1m_db"]) == {"small", "medium", "large"}
     prot = json.loads((tmp_path / "site" / "protected.json").read_text(encoding="utf-8"))
     assert [s[0] for s in prot["sites"]] == ["CP-000001", "N2-000002", "NS-000003"]
+
+
+def test_border_bit():
+    cands, pairs, details = make_tile([20.0], [50.0])
+    details["border"] = [1]
+    rec = pack.pack_records(cands, pairs, details, SITE_IDS)
+    assert rec["prot"][0] == 18 | pack.BORDER_BIT
+
+
+def test_pack_tile_and_write_index(tmp_path):
+    cands, pairs, details = make_tile([20.0, 110.0], [60.0, 55.0])
+    for t in pack.LAYERS:
+        cands[f"worst_{t}_dba"] = 60.0 if t == "home" else np.nan
+    d = tmp_path / "scr" / "20k_-37_-53"
+    d.mkdir(parents=True)
+    cands.to_csv(d / "candidates.csv", index=False)
+    pairs.to_csv(d / "pairs.csv", index=False)
+    details.to_csv(d / "details.csv", index=False)
+    meta = pack.pack_tile(d, tmp_path / "site", SITE_IDS)
+    assert (meta["id"], meta["spots"], meta["ref_min_dba"]) == ("20k_-37_-53", 1, 60.0)
+    sites = pd.DataFrame({"site_id": list(SITE_IDS), "category": ["contract", "evl", "chko"], "name": ["A", "B", "C"]})
+    assert pack.write_index(tmp_path / "site", [meta], sites) == {"tiles": 1, "spots": 1, "bytes": meta["bytes"]}
+    index = json.loads((tmp_path / "site" / "index.json").read_text(encoding="utf-8"))
+    assert index["border_bit"] == 128 and index["tiles"] == [meta]
