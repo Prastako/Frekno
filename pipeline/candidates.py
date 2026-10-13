@@ -1,4 +1,4 @@
-"""Candidate party spots on a grid, filtered by land cover and distance to homes."""
+"""Candidate event sites on a grid, filtered by land cover and distance to homes."""
 
 import math
 
