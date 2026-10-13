@@ -1,6 +1,6 @@
 // Frekno website: settings, data loading, search, results list and spot panel.
 import { loadTile, slots, spot } from "./frk.js";
-import { CLASSES, layerLevels, makeContext, rank, tolerated } from "./model.js";
+import { CLASSES, layerLevels, makeContext, rank, score, sourceSpectrum, tolerated } from "./model.js";
 import { applyStatic, dir, lang, num, setLang, t } from "./i18n.js";
 import { SCORE_COLORS, createMap, setArea, setBasemap, setSelected, setSpots, setTiles, startDraw, viewBbox } from "./map.js";
 
@@ -11,6 +11,7 @@ const PROTECT = { flag: 0, strict: 5, all: 127 };
 const ACCESS = { any: null, track100: { kind: "track", max: 100 }, track300: { kind: "track", max: 300 },
   road300: { kind: "road", max: 300 }, road1000: { kind: "road", max: 1000 } };
 const LAYER_KEYS = ["home", "cottage", "campsite", "care", "recreation"];
+const REF_RIG = { cls: "medium", character: "very_bass_heavy" }; // the screening's reference rig behind ref_min_dba
 const DEFAULTS = { cls: "medium", character: "very_bass_heavy", level: 99, distance: 20, cardioid: false, tier: "night45", goal: 40,
   perLayer: false, lt: [40, 40, 40, 40, 40], layers: [1, 1, 1, 1, 1], sites: [0, 1, 2], flat: 0, access: "any",
   protect: "flag", forestLaw: false, border: true, area: "view", rect: null, view: null, base: "night" };
@@ -126,10 +127,21 @@ function schedule(ms = 120) {
   timer = setTimeout(search, ms);
 }
 
+// Tile colours for the overview: the best spot of each tile for the reference rig, shifted to the chosen rig.
+function overview() {
+  const a = index.model.a_weighting_db;
+  const level = (src) => 10 * Math.log10(src.reduce((e, v, b) => e + 10 ** ((v + a[b]) / 10), 0));
+  const shift = level(sourceSpectrum(index, rig())) - level(sourceSpectrum(index, REF_RIG));
+  const o = opts();
+  const target = Math.min(...o.targets.filter((_, l) => o.layers[l]));
+  setTiles(api.map, index.tiles.map((m) => ({ bbox: m.bbox, outline: m.outline, s: m.ref_min_dba === null ? 10 : score(target - m.ref_min_dba - shift) })));
+}
+
 async function search() {
   const my = ++gen;
   showModes();
   writeHash();
+  overview();
   let bbox = state.area === "view" ? viewBbox(api.map) : state.area === "rect" ? state.rect : null;
   setArea(api.map, state.area === "rect" ? state.rect : null);
   const metas = bbox ? index.tiles.filter((m) => intersects(m.bbox, bbox)) : index.tiles;
@@ -280,7 +292,6 @@ async function main() {
   }
   await api.ready;
   setBasemap(api.map, state.base);
-  setTiles(api.map, index.tiles);
   form.addEventListener("input", () => { readForm(); schedule(); });
   form.addEventListener("change", () => { readForm(); schedule(); });
   form.addEventListener("submit", (e) => e.preventDefault());
