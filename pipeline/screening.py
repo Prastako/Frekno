@@ -18,9 +18,10 @@ PAIR_COLUMNS = (
     + ["ref_level_dba"]
 )
 CANDIDATE_COLUMNS = (
-    ["candidate_id", "x", "y", "n_home", "n_cottage", "n_facility",
-     "worst_home_dba", "worst_cottage_dba", "worst_facility_dba",
-     "worst_home_63", "worst_cottage_63", "worst_facility_63"]
+    ["candidate_id", "x", "y"]
+    + [f"n_{t}" for t in TYPES]
+    + [f"worst_{t}_dba" for t in TYPES]
+    + [f"worst_{t}_63" for t in TYPES]
 )
 
 

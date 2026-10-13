@@ -11,15 +11,16 @@ from pipeline.candidates import build_candidates
 from pipeline.dem import mosaic, sheets_for_bounds
 from pipeline.landcover import hard_mask, landcover_masks
 from pipeline.screening import PAIR_COLUMNS, screen_candidates
+from pipeline.select import TYPES
 from pipeline.settings import screening_cfg
 from pipeline.tiles import parse_tile_id, tile_bounds
 
-CANDIDATE_OUT_COLUMNS = [
-    "candidate_id", "x", "y", "site_type", "forest_frac",
-    "n_home", "n_cottage", "n_facility",
-    "worst_home_dba", "worst_cottage_dba", "worst_facility_dba",
-    "worst_home_63", "worst_cottage_63", "worst_facility_63",
-]
+CANDIDATE_OUT_COLUMNS = (
+    ["candidate_id", "x", "y", "site_type", "forest_frac"]
+    + [f"n_{t}" for t in TYPES]
+    + [f"worst_{t}_dba" for t in TYPES]
+    + [f"worst_{t}_63" for t in TYPES]
+)
 
 
 def tile_parts(tile_id: str, buffer_m: float) -> tuple:
@@ -145,9 +146,7 @@ def screen_tile(
         "landcover": c["stats"]["landcover"],
         "near_home": c["stats"]["near_home"],
         "kept": c["stats"]["kept"],
-        "receptors_home": int(np.sum(homes)),
-        "receptors_cottage": int(np.sum(sub["type"] == "cottage")),
-        "receptors_facility": int(np.sum(sub["type"] == "facility")),
+        **{f"receptors_{t}": int(np.sum(sub["type"] == t)) for t in TYPES},
         "dem_sheets": stats["sheets"],
         "dem_nodata_cells": stats["nodata_cells"],
         "dem_min": dem_min,

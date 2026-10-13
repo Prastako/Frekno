@@ -150,6 +150,16 @@ def test_candidate_out_columns_have_facility():
     assert "worst_facility_63" in CANDIDATE_OUT_COLUMNS
 
 
+def test_candidate_out_columns_equals_type_list():
+    """CANDIDATE_OUT_COLUMNS matches the full expected column list derived from TYPES."""
+    assert CANDIDATE_OUT_COLUMNS == [
+        "candidate_id", "x", "y", "site_type", "forest_frac",
+        "n_home", "n_cottage", "n_facility",
+        "worst_home_dba", "worst_cottage_dba", "worst_facility_dba",
+        "worst_home_63", "worst_cottage_63", "worst_facility_63",
+    ]
+
+
 # ── receptors_in_bounds ──────────────────────────────────────────────────
 
 
