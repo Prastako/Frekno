@@ -6,13 +6,14 @@ import zipfile
 import geopandas as gpd
 import numpy as np
 import pyogrio
+import pytest
 import rasterio
 from rasterio.transform import from_origin
 from shapely.geometry import Point, box
 
 from pipeline import national
 from pipeline.dem import build_index, mosaic
-from pipeline.region import write_tiles_csv
+from pipeline.region import read_region_geojson, write_tiles_csv
 
 
 def tiles_csv(path, n):
@@ -41,6 +42,20 @@ def test_obec_codes(tmp_path):
         for f in shp.iterdir():
             z.write(f, f"1/{f.name}")
     assert national.obec_codes(tmp_path / "1.zip") == ["500011", "500020"]
+
+
+def test_military_areas(tmp_path):
+    shp = tmp_path / "shp"
+    shp.mkdir()
+    gpd.GeoDataFrame({"KOD": [503941, 500011, 545422], "STATUS_KOD": ["1", "2", "1"]},
+                     geometry=[box(0, 0, 10, 10), box(20, 0, 30, 10), box(40, 0, 50, 10)], crs="EPSG:5514").to_file(shp / "OBCE_P.shp")
+    with zipfile.ZipFile(tmp_path / "1.zip", "w") as z:
+        for f in shp.iterdir():
+            z.write(f, f"1/{f.name}")
+    assert national.military_areas(tmp_path / "1.zip", tmp_path / "military.geojson") == 2
+    geom = read_region_geojson(tmp_path / "military.geojson")
+    assert geom.area == pytest.approx(200.0)
+    assert geom.contains(Point(5, 5)) and geom.contains(Point(45, 5)) and not geom.contains(Point(25, 5))
 
 
 def test_slim_zabaged(tmp_path):
