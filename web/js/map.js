@@ -1,4 +1,4 @@
-// Map: ČÚZK base maps (Web Mercator tile services), tile outlines, area rectangle, spots and the selected spot.
+// Map: ČÚZK base maps (Web Mercator tile services), tile outlines, spots and the selected spot.
 /* global maplibregl */
 const AGS = "https://ags.cuzk.gov.cz/arcgis1/rest/services/";
 export const SCORE_COLORS = ["#8e2622", "#c0392b", "#e05a2b", "#ee8d3a", "#f2c14e", "#1f7fb3", "#2fa4cf", "#5cc8e6", "#9fe6f5", "#e6fbff"];
@@ -30,12 +30,10 @@ export function createMap(container, onSpot) {
   map.addControl(new maplibregl.AttributionControl({ compact: true }));
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
   const ready = new Promise((resolve) => map.on("load", () => {
-    for (const id of ["tiles", "area", "spots", "sel"]) map.addSource(id, { type: "geojson", data: EMPTY });
+    for (const id of ["tiles", "spots", "sel"]) map.addSource(id, { type: "geojson", data: EMPTY });
     map.addLayer({ id: "tiles-fill", type: "fill", source: "tiles", filter: [">", ["get", "s"], 0],
       paint: { "fill-color": colorBy, "fill-opacity": ["interpolate", ["linear"], ["zoom"], 6, 0.35, 9, 0.12, 11, 0] } });
     map.addLayer({ id: "tiles", type: "line", source: "tiles", paint: { "line-color": "#3a5c6b", "line-width": 0.7, "line-opacity": 0.7 } });
-    map.addLayer({ id: "area-fill", type: "fill", source: "area", paint: { "fill-color": "#8fe3f0", "fill-opacity": 0.06 } });
-    map.addLayer({ id: "area-line", type: "line", source: "area", paint: { "line-color": "#8fe3f0", "line-width": 1.5, "line-dasharray": [2, 2] } });
     map.addLayer({
       id: "glow", type: "circle", source: "spots", filter: [">=", ["get", "s"], 9],
       paint: { "circle-color": colorBy, "circle-blur": 1, "circle-opacity": 0.35,
@@ -70,7 +68,6 @@ export function setSpots(map, spots) {
 // Tiles: [{bbox, outline, s}], outline = the tile's corners, s = overview score (0 = no fill).
 export const setTiles = (map, tiles) => map.getSource("tiles").setData({ type: "FeatureCollection",
   features: tiles.map((t) => ({ ...(t.outline ? ring(t.outline) : rect(t.bbox)), properties: { s: t.s ?? 0 } })) });
-export const setArea = (map, bbox) => map.getSource("area").setData(bbox ? { type: "FeatureCollection", features: [rect(bbox)] } : EMPTY);
 export const setSelected = (map, p) => map.getSource("sel").setData(p ? { type: "FeatureCollection", features: [{
   type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [p.lon, p.lat] } }] } : EMPTY);
 
@@ -85,28 +82,4 @@ export function setBasemap(map, mode) {
 export function viewBbox(map) {
   const b = map.getBounds();
   return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
-}
-
-// Let the user click two corners; done([w, s, e, n]) or done(null) on Escape.
-export function startDraw(map, done) {
-  let first = null;
-  const canvas = map.getCanvas();
-  canvas.style.cursor = "crosshair";
-  const box = (a, b) => [Math.min(a.lng, b.lng), Math.min(a.lat, b.lat), Math.max(a.lng, b.lng), Math.max(a.lat, b.lat)];
-  const move = (e) => { if (first) setArea(map, box(first, e.lngLat)); };
-  const finish = (bbox) => {
-    map.off("click", click);
-    map.off("mousemove", move);
-    window.removeEventListener("keydown", key);
-    canvas.style.cursor = "";
-    done(bbox);
-  };
-  const click = (e) => {
-    if (!first) first = e.lngLat;
-    else finish(box(first, e.lngLat));
-  };
-  const key = (e) => { if (e.key === "Escape") finish(null); };
-  map.on("click", click);
-  map.on("mousemove", move);
-  window.addEventListener("keydown", key);
 }
