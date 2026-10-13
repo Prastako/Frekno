@@ -51,6 +51,7 @@ barrier_cap_double_db = 25.0
 ground_credit = false
 band_31_5_terrain_credit = false
 n_points = 200
+method = "cnossos"  # cnossos = CNOSSOS-EU favourable ground and terrain (screening v2); iso = ISO 9613-2 with Kmet (spike v1)
 ref_class = "medium"
 ref_character = "very_bass_heavy"
 
