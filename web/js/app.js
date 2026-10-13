@@ -3,6 +3,7 @@ import { loadTile, slots, spot } from "./frk.js";
 import { CLASSES, layerLevels, makeContext, rank, score, sourceSpectrum, tolerated } from "./model.js";
 import { applyStatic, dir, lang, num, setLang, t } from "./i18n.js";
 import { SCORE_COLORS, createMap, setBasemap, setSelected, setSpots, setTiles, viewBbox } from "./map.js";
+import { clock, hasStop, indexStops, nearestStop } from "./transit.js";
 
 const DATA = "data/";
 const MAX_VIEW_TILES = 24, MAX_LIST = 100, MAX_MAP = 20000, CACHE_TILES = 40, PARALLEL = 6;
@@ -10,13 +11,15 @@ const TIERS = { inaudible: 27, cz35: 35, night45: 45 };
 const PROTECT = { flag: 0, strict: 5, all: 127 };
 const ACCESS = { any: null, track100: { kind: "track", max: 100 }, track300: { kind: "track", max: 300 },
   road300: { kind: "road", max: 300 }, road1000: { kind: "road", max: 1000 } };
+const TRANSIT = { any: null, stop1000: { max: 1000, night: false }, stop2000: { max: 2000, night: false },
+  stop5000: { max: 5000, night: false }, night2000: { max: 2000, night: true }, night5000: { max: 5000, night: true } };
 const LAYER_KEYS = ["home", "cottage", "campsite", "care", "recreation"];
 const REF_RIG = { cls: "medium", character: "very_bass_heavy" }; // the screening's reference rig behind ref_min_dba
 const DEFAULTS = { cls: "medium", character: "very_bass_heavy", level: 99, distance: 20, cardioid: false, tier: "night45", goal: 40,
-  perLayer: false, lt: [40, 40, 40, 40, 40], layers: [1, 1, 1, 1, 1], sites: [0, 1, 2], flat: 0, access: "any",
+  perLayer: false, lt: [40, 40, 40, 40, 40], layers: [1, 1, 1, 1, 1], sites: [0, 1, 2], flat: 0, access: "any", transit: "any",
   protect: "flag", forestLaw: false, area: "view", view: null, base: "night" };
 const CHOICES = { cls: ["small", "medium", "large", "custom"], character: ["balanced", "bass_heavy", "very_bass_heavy"],
-  tier: ["inaudible", "cz35", "night45", "custom"], access: Object.keys(ACCESS), protect: Object.keys(PROTECT),
+  tier: ["inaudible", "cz35", "night45", "custom"], access: Object.keys(ACCESS), transit: Object.keys(TRANSIT), protect: Object.keys(PROTECT),
   area: ["view", "all"], base: ["night", "topo", "orto"], flat: [0, 2000, 5000, 10000, 20000] };
 
 const $ = (s) => document.querySelector(s);
@@ -25,7 +28,7 @@ const field = (n) => form.elements.namedItem(n);
 const state = readHash();
 const cache = new Map();
 let index = null, api = null, results = [], metaById = new Map(), gen = 0, selected = null, prot = null, timer = 0;
-let status = ["", {}], nearBorder = false, nearMilitary = false;
+let status = ["", {}], nearBorder = false, nearMilitary = false, stopsP = null;
 
 function readHash() {
   const s = structuredClone(DEFAULTS);
@@ -58,7 +61,7 @@ function writeHash() {
 const clamp = (v, lo, hi, d) => (Number.isFinite(Number(v)) && v !== "" ? Math.min(hi, Math.max(lo, Number(v))) : d);
 
 function fillForm() {
-  for (const k of ["cls", "character", "access", "protect", "tier"]) field(k).value = state[k];
+  for (const k of ["cls", "character", "access", "transit", "protect", "tier"]) field(k).value = state[k];
   for (const k of ["level", "distance", "goal", "flat"]) field(k).value = String(state[k]);
   for (const k of ["cardioid", "perLayer", "forestLaw"]) field(k).checked = state[k];
   form.querySelectorAll("[name=layer]").forEach((el, l) => { el.checked = Boolean(state.layers[l]); });
@@ -67,7 +70,7 @@ function fillForm() {
 }
 
 function readForm() {
-  for (const k of ["cls", "character", "access", "protect", "tier"]) state[k] = field(k).value;
+  for (const k of ["cls", "character", "access", "transit", "protect", "tier"]) state[k] = field(k).value;
   state.level = clamp(field("level").value, 60, 140, 99);
   state.distance = clamp(field("distance").value, 1, 200, 20);
   state.goal = clamp(field("goal").value, 15, 70, 40);
@@ -171,6 +174,12 @@ async function search() {
   };
   let best = [], total = 0;
   try {
+    const tr = TRANSIT[state.transit];
+    if (tr) {
+      const st = await getStops();
+      f.near = (x, y) => hasStop(st, x, y, tr.max, tr.night);
+    }
+    if (my !== gen) return;
     await eachTile(load, (m, tile) => {
       if (my !== gen) return;
       const part = rank([{ id: m.id, t: tile }], ctx, f).map((r) => keep(m.id, tile, r));
@@ -229,6 +238,37 @@ async function protectedNames(ids) {
   return ids.map((j) => `${t(`cat_${p.sites[j][1]}`)} ${p.sites[j][2]}`).join(", ");
 }
 
+function getStops() {
+  if (!stopsP) {
+    stopsP = fetch(DATA + "stops.json").then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status} for stops.json`);
+      return res.json();
+    }).then(indexStops).catch((e) => { stopsP = null; throw e; });
+  }
+  return stopsP;
+}
+
+const esc = (v) => String(v).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+// A stop ({ s, d } from nearestStop) with its departures on the two weekend nights, as list items.
+function stopRows(st, n, key) {
+  const cs = lang() === "cs";
+  const day = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString(cs ? "cs-CZ" : "en-GB", { day: "numeric", month: cs ? "numeric" : "short" });
+  const nights = [0, 1].map((j) => {
+    const last = clock(n.s[3 + 2 * j]), first = clock(n.s[4 + 2 * j]);
+    return `<li>${t(`night_${j}`, { d: day(st.nights[j]) })}: ${last ? t("after", { t: last }) : t("after_none")}, ${first ? t("morning", { t: first }) : t("morning_none")}</li>`;
+  });
+  return `<li>${t(key, { name: esc(n.s[2]), d: km(n.d) })}</li>${nights.join("")}`;
+}
+
+// The spot's nearest stop and, when nothing leaves it after midnight, the nearest stop that has such a departure.
+function transitRows(st, s) {
+  const n = nearestStop(st, s.x, s.y, 20000);
+  if (!n) return `<li>${t("stop_none")}</li>`;
+  const late = n.s[3] < 0 && n.s[5] < 0 ? nearestStop(st, s.x, s.y, 20000, true) : null;
+  return stopRows(st, n, "stop_near") + (late ? stopRows(st, late, "stop_night") : "");
+}
+
 async function openPanel(k, fly) {
   const r = results[k];
   if (!r) return;
@@ -263,6 +303,7 @@ async function openPanel(k, fly) {
     ${state.cls === "custom" && r.margin !== Infinity ? `<p>${t("yours", { l: num(state.level + r.margin), d: state.distance })}</p>` : ""}
     <h3>${t("loudest")}</h3><ul>${rows}</ul>
     <h3>${t("site")}</h3><ul>${facts.map((f) => `<li>${f}</li>`).join("")}<li class="prot"></li></ul>
+    <h3>${t("transit")}</h3><ul class="transit"><li>${t("stop_loading")}</li></ul>
     <p class="links"><a href="https://nahlizenidokn.cuzk.gov.cz/MapaIdentifikace.aspx?l=KN&amp;x=${s.x}&amp;y=${s.y}" target="_blank" rel="noopener">${t("owner")}</a>
     <a href="https://mapy.cz/zakladni?source=coor&amp;id=${s.lon.toFixed(5)}%2C${s.lat.toFixed(5)}&amp;x=${s.lon.toFixed(5)}&amp;y=${s.lat.toFixed(5)}&amp;z=16" target="_blank" rel="noopener">${t("mapy")}</a></p>
     <p class="note">${t("owner_note")}</p>
@@ -272,6 +313,12 @@ async function openPanel(k, fly) {
   const li = el.querySelector(".prot");
   li.textContent = s.sites.length ? "" : t("prot_none");
   if (s.sites.length) li.textContent = t("prot_list", { names: await protectedNames(s.sites) });
+  const tl = el.querySelector(".transit");
+  try {
+    tl.innerHTML = transitRows(await getStops(), s);
+  } catch {
+    tl.innerHTML = `<li>${t("stop_error")}</li>`;
+  }
 }
 
 function closePanel() {
