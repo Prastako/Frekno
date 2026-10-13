@@ -1,0 +1,46 @@
+name: national inputs
+
+# Downloads the national open data (ČÚZK, AOPK ČR), prepares it and publishes the inputs for the tile runs
+# as a prerelease. Run by hand, rarely.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  inputs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    env:
+      FREKNO_DATA: /mnt/frekno/data
+      FREKNO_OUT: /mnt/frekno/out
+      FREKNO_ZABAGED: /mnt/frekno/zabaged/ZABAGED_RESULTS.gpkg
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: "python -m pip install --only-binary=:all: -r requirements.txt"
+      - run: sudo mkdir -p /mnt/frekno && sudo chown "$USER" /mnt/frekno && df -h / /mnt
+      - name: Download
+        run: python -m pipeline.national fetch || python -m pipeline.national fetch
+      - name: Prepare
+        run: |
+          python -m pipeline.cli prep-region --vusc 0
+          python -m pipeline.cli prep-buildings
+          python -m pipeline.cli prep-receptors
+          python -m pipeline.cli prep-facilities
+          python -m pipeline.cli prep-protected
+          python -m pipeline.cli prep-dem-index
+      - name: Release files
+        run: python -m pipeline.national inputs /mnt/frekno/inputs && df -h /mnt
+      - name: Publish
+        run: |
+          tag="inputs-$(date -u +%Y%m%d-%H%M)"
+          gh release create "$tag" --prerelease --title "$tag" \
+            --notes "Inputs for the national tile runs, prepared by pipeline/national.py at ${GITHUB_SHA}. Data: ČÚZK (RÚIAN, ZABAGED, DMR 4G) and AOPK ČR, CC BY 4.0."
+          gh release upload "$tag" /mnt/frekno/inputs/*.* /mnt/frekno/inputs/dem/*.tif
+          echo "Published $tag" >> "$GITHUB_STEP_SUMMARY"
