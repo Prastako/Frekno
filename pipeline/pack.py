@@ -2,7 +2,8 @@
 
 Tile file = gzip of a 16-byte header and one fixed-size record per spot (little-endian, no padding).
 Record: lon, lat (float32, WGS84); x, y (int32, S-JTSK metres, for the cadastre link); site type,
-forest percent, slope percent (255 = unknown), protected bits (uint8); flat area in m2 and the
+forest percent, slope percent (255 = unknown), protected bits (uint8; BORDER_BIT = receptors beyond
+the region edge may be missing); flat area in m2 and the
 distances in metres to forest, road and track (uint16); MAX_SITES indices into protected.json
 (uint16, NO_SITE = none); then for each layer in LAYERS a slot count, a floor and K slots.
 A slot is the loudest receptor (reference rig) of one sector of true bearing: nine band
@@ -34,6 +35,7 @@ SECTORS = 8
 MAX_SITES = 4
 NO_SITE = 65535
 NO_FLOOR = 255
+BORDER_BIT = 128  # in the protected-bits byte: receptors beyond the region edge may be missing
 ATT_STEP_DB = 0.5
 FLOOR_STEP_DB = 0.25
 BAND_KEYS = ["a31", "a63", "a125", "a250", "a500", "a1k", "a2k", "a4k", "a8k"]
@@ -91,7 +93,8 @@ def pack_records(cands: pd.DataFrame, pairs: pd.DataFrame, details: pd.DataFrame
     det = details.set_index("candidate_id").loc[cands["candidate_id"].to_numpy()]
     slope = det["slope_pct"].to_numpy(float)
     rec["slope"] = np.where(np.isnan(slope), 255, np.clip(np.rint(np.nan_to_num(slope)), 0, 254))
-    rec["prot"] = det["prot"].to_numpy(int)
+    border = det["border"].fillna(0).to_numpy(int) if "border" in det.columns else np.zeros(n, dtype=int)
+    rec["prot"] = det["prot"].to_numpy(int) | np.where(border > 0, BORDER_BIT, 0)
     for col, key in (("flat", "flat_m2"), ("forest_m", "forest_m"), ("road_m", "road_m"), ("track_m", "track_m")):
         rec[col] = np.clip(np.rint(det[key].to_numpy(float)), 0, 65535)
     rec["sites"] = site_indices(det["prot_sites"], site_ids)
@@ -163,35 +166,55 @@ def model_block() -> dict:
                              for c in ac["classes"]}}
 
 
-def pack_region(screen_dir, site_dir, protected_gpkg, list_cap: int = 20) -> dict:
-    """Pack every tile folder of *screen_dir* into site_dir/tiles/<tile>.bin.gz; write index.json and protected.json."""
-    screen_dir, site_dir = Path(screen_dir), Path(site_dir)
+def read_sites(protected_gpkg) -> pd.DataFrame:
+    """Protected sites (site_id, category, name) from the prepared GeoPackage, sorted by site_id."""
     sites = pyogrio.read_dataframe(protected_gpkg, layer="protected", read_geometry=False,
                                    columns=["site_id", "category", "name"])
-    sites = sites.astype(str).sort_values("site_id", kind="stable").reset_index(drop=True)
-    site_ids = sites["site_id"].to_numpy()
-    tiles = []
-    for d in sorted(p for p in screen_dir.iterdir() if (p / "candidates.csv").exists() and (p / "pairs.csv").exists()):
-        cands = pd.read_csv(d / "candidates.csv")
-        if len(cands) == 0:
-            continue
-        if not (d / "details.csv").exists():
-            raise FileNotFoundError(f"details.csv missing in {d}")
-        details = pd.read_csv(d / "details.csv", dtype={"prot_sites": str})
-        rec = pack_records(cands, pd.read_csv(d / "pairs.csv", dtype={"receptor_id": str}), details, site_ids, list_cap)
-        size = write_tile(rec, site_dir / "tiles" / f"{d.name}.bin.gz")
-        worst = cands[[f"worst_{t}_dba" for t in LAYERS]].max(axis=1).min()
-        tiles.append({"id": d.name, "file": f"tiles/{d.name}.bin.gz", "spots": int(len(rec)), "bytes": size,
-                      "bbox": [round(float(v), 6) for v in (rec["lon"].min(), rec["lat"].min(), rec["lon"].max(), rec["lat"].max())],
-                      "ref_min_dba": None if pd.isna(worst) else round(float(worst), 1)})
+    return sites.astype(str).sort_values("site_id", kind="stable").reset_index(drop=True)
+
+
+def pack_tile(tile_dir, site_dir, site_ids: np.ndarray, list_cap: int = 20) -> dict | None:
+    """Pack one screened tile folder into site_dir/tiles/<tile>.bin.gz; return its index entry (None without spots)."""
+    d = Path(tile_dir)
+    cands = pd.read_csv(d / "candidates.csv")
+    if len(cands) == 0:
+        return None
+    if not (d / "details.csv").exists():
+        raise FileNotFoundError(f"details.csv missing in {d}")
+    details = pd.read_csv(d / "details.csv", dtype={"prot_sites": str})
+    rec = pack_records(cands, pd.read_csv(d / "pairs.csv", dtype={"receptor_id": str}), details, site_ids, list_cap)
+    size = write_tile(rec, Path(site_dir) / "tiles" / f"{d.name}.bin.gz")
+    worst = cands[[f"worst_{t}_dba" for t in LAYERS]].max(axis=1).min()
+    return {"id": d.name, "file": f"tiles/{d.name}.bin.gz", "spots": int(len(rec)), "bytes": size,
+            "bbox": [round(float(v), 6) for v in (rec["lon"].min(), rec["lat"].min(), rec["lon"].max(), rec["lat"].max())],
+            "ref_min_dba": None if pd.isna(worst) else round(float(worst), 1)}
+
+
+def write_index(site_dir, tiles: list[dict], sites: pd.DataFrame) -> dict:
+    """Write site_dir/index.json (tiles sorted by id) and protected.json; return totals."""
+    site_dir = Path(site_dir)
     site_dir.mkdir(parents=True, exist_ok=True)
+    tiles = sorted(tiles, key=lambda t: t["id"])
     prot = {"bits": PROTECTED_BITS, "sites": sites[["site_id", "category", "name"]].values.tolist()}
     (site_dir / "protected.json").write_text(json.dumps(prot, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     index = {"format": MAGIC.decode(), "version": VERSION, "layers": list(LAYERS), "bands_hz": BANDS_HZ, "k": K,
              "sectors": SECTORS, "att_step_db": ATT_STEP_DB, "floor_step_db": FLOOR_STEP_DB, "max_sites": MAX_SITES,
-             "site_codes": SITE_CODES, "protected_bits": PROTECTED_BITS, "protected_file": "protected.json",
+             "site_codes": SITE_CODES, "protected_bits": PROTECTED_BITS, "border_bit": BORDER_BIT,
+             "protected_file": "protected.json",
              "details": {"flat_radius_m": FLAT_RADIUS_M, "flat_slope_pct": FLAT_SLOPE_PCT, "dist_cap_m": DIST_CAP_M},
              "model": model_block(), "tiles": tiles,
              "attribution": "ČÚZK (RÚIAN, ZABAGED, DMR 4G), CC BY 4.0; AOPK ČR (chráněná území), CC BY 4.0"}
     (site_dir / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=1), encoding="utf-8")
     return {"tiles": len(tiles), "spots": sum(t["spots"] for t in tiles), "bytes": sum(t["bytes"] for t in tiles)}
+
+
+def pack_region(screen_dir, site_dir, protected_gpkg, list_cap: int = 20) -> dict:
+    """Pack every tile folder of *screen_dir* into site_dir/tiles/<tile>.bin.gz; write index.json and protected.json."""
+    sites = read_sites(protected_gpkg)
+    ids = sites["site_id"].to_numpy()
+    tiles = []
+    for d in sorted(p for p in Path(screen_dir).iterdir() if (p / "candidates.csv").exists() and (p / "pairs.csv").exists()):
+        meta = pack_tile(d, site_dir, ids, list_cap)
+        if meta is not None:
+            tiles.append(meta)
+    return write_index(site_dir, tiles, sites)
