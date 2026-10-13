@@ -31,6 +31,8 @@ export function createMap(container, onSpot) {
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
   const ready = new Promise((resolve) => map.on("load", () => {
     for (const id of ["tiles", "area", "spots", "sel"]) map.addSource(id, { type: "geojson", data: EMPTY });
+    map.addLayer({ id: "tiles-fill", type: "fill", source: "tiles", filter: [">", ["get", "s"], 0],
+      paint: { "fill-color": colorBy, "fill-opacity": ["interpolate", ["linear"], ["zoom"], 6, 0.35, 9, 0.12, 11, 0] } });
     map.addLayer({ id: "tiles", type: "line", source: "tiles", paint: { "line-color": "#3a5c6b", "line-width": 0.7, "line-opacity": 0.7 } });
     map.addLayer({ id: "area-fill", type: "fill", source: "area", paint: { "fill-color": "#8fe3f0", "fill-opacity": 0.06 } });
     map.addLayer({ id: "area-line", type: "line", source: "area", paint: { "line-color": "#8fe3f0", "line-width": 1.5, "line-dasharray": [2, 2] } });
@@ -57,6 +59,7 @@ export function createMap(container, onSpot) {
 
 const rect = (b) => ({ type: "Feature", properties: {}, geometry: { type: "Polygon",
   coordinates: [[[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]], [b[0], b[1]]]] } });
+const ring = (pts) => ({ type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [[...pts, pts[0]]] } });
 
 // Spots: [{lon, lat, score, key}].
 export function setSpots(map, spots) {
@@ -64,7 +67,9 @@ export function setSpots(map, spots) {
     type: "Feature", properties: { s: p.score, k: p.key }, geometry: { type: "Point", coordinates: [p.lon, p.lat] } })) });
 }
 
-export const setTiles = (map, tiles) => map.getSource("tiles").setData({ type: "FeatureCollection", features: tiles.map((t) => rect(t.bbox)) });
+// Tiles: [{bbox, outline, s}], outline = the tile's corners, s = overview score (0 = no fill).
+export const setTiles = (map, tiles) => map.getSource("tiles").setData({ type: "FeatureCollection",
+  features: tiles.map((t) => ({ ...(t.outline ? ring(t.outline) : rect(t.bbox)), properties: { s: t.s ?? 0 } })) });
 export const setArea = (map, bbox) => map.getSource("area").setData(bbox ? { type: "FeatureCollection", features: [rect(bbox)] } : EMPTY);
 export const setSelected = (map, p) => map.getSource("sel").setData(p ? { type: "FeatureCollection", features: [{
   type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [p.lon, p.lat] } }] } : EMPTY);

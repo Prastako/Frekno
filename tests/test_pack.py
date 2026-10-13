@@ -110,6 +110,7 @@ def test_pack_tile_and_write_index(tmp_path):
     details.to_csv(d / "details.csv", index=False)
     meta = pack.pack_tile(d, tmp_path / "site", SITE_IDS)
     assert (meta["id"], meta["spots"], meta["ref_min_dba"]) == ("20k_-37_-53", 1, 60.0)
+    assert len(meta["outline"]) == 4 and all(13 < lon < 15 and 49 < lat < 51 for lon, lat in meta["outline"])
     sites = pd.DataFrame({"site_id": list(SITE_IDS), "category": ["contract", "evl", "chko"], "name": ["A", "B", "C"]})
     assert pack.write_index(tmp_path / "site", [meta], sites) == {"tiles": 1, "spots": 1, "bytes": meta["bytes"]}
     index = json.loads((tmp_path / "site" / "index.json").read_text(encoding="utf-8"))

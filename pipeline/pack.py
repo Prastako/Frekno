@@ -27,6 +27,7 @@ from pipeline.acoustics import A_WEIGHTING_DB, air_absorption_db_per_km, load_ac
 from pipeline.details import DIST_CAP_M, FLAT_RADIUS_M, FLAT_SLOPE_PCT, PROTECTED_BITS
 from pipeline.freefield import levels_for
 from pipeline.select import TYPES as LAYERS
+from pipeline.tiles import parse_tile_id, tile_bounds
 
 MAGIC = b"FRK1"
 VERSION = 2
@@ -185,8 +186,12 @@ def pack_tile(tile_dir, site_dir, site_ids: np.ndarray, list_cap: int = 20) -> d
     rec = pack_records(cands, pd.read_csv(d / "pairs.csv", dtype={"receptor_id": str}), details, site_ids, list_cap)
     size = write_tile(rec, Path(site_dir) / "tiles" / f"{d.name}.bin.gz")
     worst = cands[[f"worst_{t}_dba" for t in LAYERS]].max(axis=1).min()
+    ix, iy, tile_m = parse_tile_id(d.name)
+    x0, y0, x1, y1 = tile_bounds(ix, iy, tile_m)
+    lon, lat = _TO_WGS.transform([x0, x1, x1, x0], [y0, y0, y1, y1])
     return {"id": d.name, "file": f"tiles/{d.name}.bin.gz", "spots": int(len(rec)), "bytes": size,
             "bbox": [round(float(v), 6) for v in (rec["lon"].min(), rec["lat"].min(), rec["lon"].max(), rec["lat"].max())],
+            "outline": [[round(float(a), 5), round(float(b), 5)] for a, b in zip(lon, lat)],
             "ref_min_dba": None if pd.isna(worst) else round(float(worst), 1)}
 
 
