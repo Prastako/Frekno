@@ -28,6 +28,7 @@ def test_screening_cfg():
         "receptor_h": 4.0,
         "n_points": 200,
         "keep_per_type": 20,
+        "per_bin": 1,
         "method": "cnossos",
         "g_hard": 0.0,
         "g_soft": 1.0,

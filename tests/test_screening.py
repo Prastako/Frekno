@@ -267,6 +267,34 @@ def test_pairs_follow_loudness_order_behind_a_wall(flat_dem, tr):
     assert pairs2[0]["rx"] == pytest.approx(16000.0, abs=1e-6)
 
 
+def test_per_bin_filters_nearest(flat_dem, tr, cfg):
+    """Two homes due north at 500 m and 600 m: per_bin=2 keeps both, per_bin=1 keeps the nearer."""
+    candidates2, pairs2 = screen_candidates(
+        flat_dem, tr,
+        [15000], [15000],
+        [15000, 15000],
+        [15500, 15600],
+        ["home", "home"],
+        ["h500", "h600"],
+        {**cfg, "per_bin": 2},
+    )
+    assert len(pairs2) == 2
+    ids_2 = [p["receptor_id"] for p in pairs2]
+    assert ids_2 == ["h500", "h600"]
+
+    candidates1, pairs1 = screen_candidates(
+        flat_dem, tr,
+        [15000], [15000],
+        [15000, 15000],
+        [15500, 15600],
+        ["home", "home"],
+        ["h500", "h600"],
+        {**cfg, "per_bin": 1},
+    )
+    assert len(pairs1) == 1
+    assert pairs1[0]["receptor_id"] == "h500"
+
+
 def test_cnossos_no_hard(flat_dem, tr):
     """CNOSOS without hard mask equals 20*log10(d3) + alpha*(d3-1)/1000 with d3=hypot(1000,2)."""
     alpha = air_absorption_db_per_km(10, 70)
