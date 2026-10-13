@@ -175,7 +175,11 @@ def read_sites(protected_gpkg) -> pd.DataFrame:
 
 
 def pack_tile(tile_dir, site_dir, site_ids: np.ndarray, list_cap: int = 20) -> dict | None:
-    """Pack one screened tile folder into site_dir/tiles/<tile>.bin.gz; return its index entry (None without spots)."""
+    """Pack one screened tile folder into site_dir/tiles/<tile>.bin.gz; return its index entry (None without candidates).
+
+    Spots flagged in details.csv as near the region edge (border = 1) are left out, because receptors beyond the
+    edge are missing; the entry counts them in border_dropped. A tile left without spots gets an entry without a file.
+    """
     d = Path(tile_dir)
     cands = pd.read_csv(d / "candidates.csv")
     if len(cands) == 0:
@@ -183,16 +187,30 @@ def pack_tile(tile_dir, site_dir, site_ids: np.ndarray, list_cap: int = 20) -> d
     if not (d / "details.csv").exists():
         raise FileNotFoundError(f"details.csv missing in {d}")
     details = pd.read_csv(d / "details.csv", dtype={"prot_sites": str})
-    rec = pack_records(cands, pd.read_csv(d / "pairs.csv", dtype={"receptor_id": str}), details, site_ids, list_cap)
-    size = write_tile(rec, Path(site_dir) / "tiles" / f"{d.name}.bin.gz")
-    worst = cands[[f"worst_{t}_dba" for t in LAYERS]].max(axis=1).min()
+    pairs = pd.read_csv(d / "pairs.csv", dtype={"receptor_id": str})
+    near = set()
+    if "border" in details.columns:
+        near = set(details.loc[details["border"].fillna(0).astype(int) > 0, "candidate_id"])
+    drop = cands["candidate_id"].isin(near)
+    cands = cands[~drop].reset_index(drop=True)
+    pairs = pairs[~pairs["candidate_id"].isin(near)]
+    details = details[~details["candidate_id"].isin(near)]
     ix, iy, tile_m = parse_tile_id(d.name)
     x0, y0, x1, y1 = tile_bounds(ix, iy, tile_m)
     lon, lat = _TO_WGS.transform([x0, x1, x1, x0], [y0, y0, y1, y1])
-    return {"id": d.name, "file": f"tiles/{d.name}.bin.gz", "spots": int(len(rec)), "bytes": size,
-            "bbox": [round(float(v), 6) for v in (rec["lon"].min(), rec["lat"].min(), rec["lon"].max(), rec["lat"].max())],
-            "outline": [[round(float(a), 5), round(float(b), 5)] for a, b in zip(lon, lat)],
-            "ref_min_dba": None if pd.isna(worst) else round(float(worst), 1)}
+    outline = [[round(float(a), 5), round(float(b), 5)] for a, b in zip(lon, lat)]
+    entry = {"id": d.name, "file": None, "spots": 0, "bytes": 0,
+             "bbox": [min(p[0] for p in outline), min(p[1] for p in outline), max(p[0] for p in outline), max(p[1] for p in outline)],
+             "outline": outline, "ref_min_dba": None, "border_dropped": int(drop.sum())}
+    if len(cands) == 0:
+        return entry
+    rec = pack_records(cands, pairs, details, site_ids, list_cap)
+    worst = cands[[f"worst_{t}_dba" for t in LAYERS]].max(axis=1).min()
+    entry.update({"file": f"tiles/{d.name}.bin.gz", "spots": int(len(rec)),
+                  "bytes": write_tile(rec, Path(site_dir) / "tiles" / f"{d.name}.bin.gz"),
+                  "bbox": [round(float(v), 6) for v in (rec["lon"].min(), rec["lat"].min(), rec["lon"].max(), rec["lat"].max())],
+                  "ref_min_dba": None if pd.isna(worst) else round(float(worst), 1)})
+    return entry
 
 
 def write_index(site_dir, tiles: list[dict], sites: pd.DataFrame) -> dict:
