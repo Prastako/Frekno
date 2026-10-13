@@ -10,6 +10,8 @@ from pipeline.region import prep_region, prep_buildings, prep_receptors, prep_de
 from pipeline.dem import read_index_csv
 from pipeline.facilities import prep_facilities
 from pipeline.pack import pack_region
+from pipeline.protected import prep_protected
+from pipeline.details import tile_details
 from pipeline.tile_screen import screen_tile
 from pipeline.nm_tile import VARIANTS, nm_tile
 from pipeline.ruian_check import ruian_check
@@ -19,11 +21,13 @@ COMMANDS = (
     "prep-buildings",
     "prep-receptors",
     "prep-facilities",
+    "prep-protected",
     "prep-dem-index",
     "screen-tile",
     "nm-tile",
     "ruian-check",
     "pack",
+    "tile-details",
 )
 
 
@@ -39,6 +43,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("prep-buildings")
     subparsers.add_parser("prep-receptors")
     subparsers.add_parser("prep-facilities")
+    subparsers.add_parser("prep-protected")
     subparsers.add_parser("prep-dem-index")
     subparsers.add_parser("ruian-check")
 
@@ -61,6 +66,11 @@ def build_parser() -> argparse.ArgumentParser:
     pk = subparsers.add_parser("pack")
     pk.add_argument("--screen-dir", default=None)
     pk.add_argument("--site-dir", default=None)
+
+    # tile-details
+    td = subparsers.add_parser("tile-details")
+    td.add_argument("tile")
+    td.add_argument("--screen-dir", default=None)
 
     return parser
 
@@ -148,6 +158,21 @@ def run(args: argparse.Namespace) -> dict:
             read_region_geojson(reg / "region.geojson"),
             paths["zabaged"],
             out / "ruian",
+        )
+
+    if cmd == "prep-protected":
+        return prep_protected(
+            paths["data_dir"] / "raw" / "aopk" / "INSPIRE-PS_All.gml",
+            reg / "protected.gpkg",
+        )
+
+    if cmd == "tile-details":
+        return tile_details(
+            args.tile,
+            read_index_csv(reg / "dem_index.csv"),
+            paths["zabaged"],
+            reg / "protected.gpkg",
+            Path(args.screen_dir) if args.screen_dir else out / "tiles" / args.tile,
         )
 
     if cmd == "pack":

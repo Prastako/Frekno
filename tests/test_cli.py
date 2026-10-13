@@ -136,3 +136,25 @@ def test_main_pack(tmp_path, monkeypatch):
     assert out == {"tiles": 1}
     assert fake_pack_region._screen_dir == tmp_path / "tiles"
     assert fake_pack_region._site_dir == tmp_path / "site"
+
+
+def test_main_tile_details(tmp_path, monkeypatch):
+    """main() for tile-details delegates correctly and returns 0."""
+
+    def fake_tile_details(tile, dem_index, zabaged, protected, screen_dir):
+        fake_tile_details._tile = tile
+        fake_tile_details._screen_dir = screen_dir
+        return {"spots": 1}
+
+    monkeypatch.setattr(pipeline.cli, "tile_details", fake_tile_details)
+    monkeypatch.setattr(pipeline.cli, "read_index_csv", lambda path: [])
+    captured = StringIO()
+    monkeypatch.setattr("sys.stdout", captured)
+
+    ret = pipeline.cli.main(["--out", str(tmp_path), "tile-details", "20k_1_2"])
+    assert ret == 0
+
+    out = json.loads(captured.getvalue().strip())
+    assert out == {"spots": 1}
+    assert fake_tile_details._tile == "20k_1_2"
+    assert fake_tile_details._screen_dir == tmp_path / "tiles" / "20k_1_2"
