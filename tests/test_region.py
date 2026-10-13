@@ -22,6 +22,7 @@ from pipeline.region import (
     write_region_geojson,
     write_tiles_csv,
 )
+from pipeline.receptors import write_receptors_csv
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "tests" / "fixtures"
@@ -255,3 +256,54 @@ class TestPrepDemIndex:
         result = prep_dem_index(dmr_dir, out_csv)
         assert result["sheets"] == 0
         assert out_csv.exists()
+
+
+# -- load_receptors with facilities.csv -----------------------------------
+
+class TestLoadReceptorsWithFacilities:
+    """load_receptors also reads facilities.csv when present."""
+
+    def test_with_facilities(self, tmp_path: Path):
+        """receptors.csv + facilities.csv yields combined rows."""
+        receptors_csv = tmp_path / "receptors.csv"
+        write_receptors_csv(
+            [
+                {"building_id": "a1", "x": -750000, "y": -1050000,
+                 "use_code": 1, "number_type": "1", "receptor_type": "home",
+                 "unclear": False},
+                {"building_id": "a2", "x": -750100, "y": -1050100,
+                 "use_code": 1, "number_type": "1", "receptor_type": "home",
+                 "unclear": False},
+            ],
+            receptors_csv,
+        )
+        fac_csv = tmp_path / "facilities.csv"
+        write_receptors_csv(
+            [
+                {"building_id": "zbg5_0", "x": -750200, "y": -1050200,
+                 "use_code": 0, "number_type": "0", "receptor_type": "facility",
+                 "unclear": False},
+            ],
+            fac_csv,
+        )
+        receptors = load_receptors(receptors_csv)
+        assert len(receptors["x"]) == 3
+        assert receptors["type"][2] == "facility"
+        assert receptors["id"][2] == "zbg5_0"
+
+    def test_without_facilities(self, tmp_path: Path):
+        """receptors.csv alone yields only receptor rows."""
+        receptors_csv = tmp_path / "receptors.csv"
+        write_receptors_csv(
+            [
+                {"building_id": "b1", "x": -760000, "y": -1060000,
+                 "use_code": 1, "number_type": "1", "receptor_type": "home",
+                 "unclear": False},
+                {"building_id": "b2", "x": -760100, "y": -1060100,
+                 "use_code": 1, "number_type": "1", "receptor_type": "home",
+                 "unclear": False},
+            ],
+            receptors_csv,
+        )
+        receptors = load_receptors(receptors_csv)
+        assert len(receptors["x"]) == 2
