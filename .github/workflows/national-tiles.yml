@@ -1,0 +1,110 @@
+name: national tiles
+
+# Screens every tile from a national inputs release, adds the spot details, packs the website data
+# and publishes it as a prerelease. Run by hand after "national inputs".
+
+on:
+  workflow_dispatch:
+    inputs:
+      inputs_tag:
+        description: Release with the national inputs (inputs-YYYYMMDD-HHMM)
+        required: true
+      group_size:
+        description: Tiles per job
+        default: "8"
+
+permissions:
+  contents: write
+
+env:
+  FREKNO_DATA: /mnt/frekno/data
+  FREKNO_OUT: /mnt/frekno/out
+  FREKNO_ZABAGED: /mnt/frekno/out/region/zabaged_slim.gpkg
+  BASE: https://github.com/${{ github.repository }}/releases/download/${{ inputs.inputs_tag }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      groups: ${{ steps.groups.outputs.groups }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: "python -m pip install --only-binary=:all: -r requirements.txt"
+      - run: mkdir -p "$FREKNO_OUT/region" && curl -fsSL --retry 3 -o "$FREKNO_OUT/region/tiles.csv" "$BASE/tiles.csv"
+        shell: bash
+        env:
+          FREKNO_OUT: ${{ runner.temp }}/out
+      - id: groups
+        run: echo "groups=$(python -m pipeline.national groups --size ${{ inputs.group_size }})" >> "$GITHUB_OUTPUT"
+        env:
+          FREKNO_OUT: ${{ runner.temp }}/out
+
+  tiles:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        group: ${{ fromJSON(needs.plan.outputs.groups) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: "python -m pip install --only-binary=:all: -r requirements.txt"
+      - name: Inputs
+        run: |
+          sudo mkdir -p /mnt/frekno && sudo chown "$USER" /mnt/frekno
+          mkdir -p "$FREKNO_OUT/region" "$FREKNO_DATA/raw/dmr4g"
+          for f in region.geojson tiles.csv receptors.csv facilities.csv protected.gpkg zabaged_slim.gpkg; do
+            curl -fsSL --retry 3 -o "$FREKNO_OUT/region/$f" "$BASE/$f"
+          done
+          for t in $(python -m pipeline.national neighbours ${{ matrix.group }}); do
+            curl -fsSL --retry 3 -o "$FREKNO_DATA/raw/dmr4g/$t.tif" "$BASE/$t.tif" || rm -f "$FREKNO_DATA/raw/dmr4g/$t.tif"
+          done
+          python -m pipeline.cli prep-dem-index
+      - name: Screen, details, pack
+        run: |
+          echo "${{ matrix.group }}" | tr ' ' '\n' | xargs -P 4 -I{} sh -c \
+            'python -m pipeline.cli screen-tile {} --pairs && python -m pipeline.cli tile-details {} && python -m pipeline.national pack-tile {} --site-dir /mnt/frekno/site'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: site-${{ strategy.job-index }}
+          path: /mnt/frekno/site
+          retention-days: 14
+
+  assemble:
+    needs: tiles
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: "python -m pip install --only-binary=:all: -r requirements.txt"
+      - run: |
+          sudo mkdir -p /mnt/frekno && sudo chown "$USER" /mnt/frekno
+          mkdir -p "$FREKNO_OUT/region"
+          curl -fsSL --retry 3 -o "$FREKNO_OUT/region/protected.gpkg" "$BASE/protected.gpkg"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: site-*
+          merge-multiple: true
+          path: /mnt/frekno/site
+      - name: Index and publish
+        run: |
+          python -m pipeline.national pack-index --site-dir /mnt/frekno/site
+          tar -C /mnt/frekno/site -czf /mnt/frekno/site-data.tar.gz index.json protected.json tiles
+          tag="site-$(date -u +%Y%m%d-%H%M)"
+          gh release create "$tag" --prerelease --title "$tag" \
+            --notes "Website data from ${{ inputs.inputs_tag }}, packed at ${GITHUB_SHA}. Data: ČÚZK and AOPK ČR, CC BY 4.0." \
+            /mnt/frekno/site-data.tar.gz /mnt/frekno/site/index.json
+          echo "Published $tag" >> "$GITHUB_STEP_SUMMARY"

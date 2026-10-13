@@ -32,6 +32,7 @@ Site screening for outdoor events in Czechia. For every candidate site on a 250 
 - `tests/`: pytest suite; `tests/known_answers/` holds values from `docs/acoustic_sanity_check.xlsx` that the code must reproduce
 - `docs/`: test-region plan and the acoustic sanity-check spreadsheet
 - `web/`: the static website without a build step (`index.html`, `js/`, `css/`); node tests in `web/tests/`
+- `.github/workflows/`: tests on every push; the national run and the website deploy, all started by hand
 
 ## Running the tests
 
@@ -49,6 +50,16 @@ node --test "web/tests/*.test.mjs"
 ```
 
 Data paths for the pipeline runs are set in `config/spike.toml`. To preview the website, pack the data into a folder's `data/` subfolder (`python -m pipeline.cli pack --site-dir <folder>/data`), copy the contents of `web/` into the folder and serve it, for example with `python -m http.server`.
+
+## National run
+
+Three GitHub Actions workflows, each started by hand:
+
+- `national inputs` downloads RÚIAN, ZABAGED, DMR 4G and the AOPK protected areas, prepares receptors, facilities, a smaller ZABAGED file and 10 m terrain per tile (`pipeline/national.py`), and publishes them as a prerelease `inputs-<date>`.
+- `national tiles` takes that tag, screens the tiles in groups, adds the spot details, packs the website data and publishes `site-<date>` with `site-data.tar.gz`.
+- `site` publishes `web/` with a `site-<date>` release on GitHub Pages.
+
+Sites within 10 km of the state border are flagged: homes abroad are not in the receptor data. The same steps run locally with `python -m pipeline.national` and `python -m pipeline.cli`.
 
 ## Licences and data
 

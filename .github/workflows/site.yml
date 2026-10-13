@@ -1,0 +1,39 @@
+name: site
+
+# Publishes the website (web/) with a site data release on GitHub Pages. Run by hand on Jan's go.
+
+on:
+  workflow_dispatch:
+    inputs:
+      site_tag:
+        description: Release with the website data (site-YYYYMMDD-HHMM)
+        required: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble
+        run: |
+          mkdir -p _site/data
+          cp -r web/index.html web/css web/js _site/
+          curl -fsSL --retry 3 -o /tmp/site-data.tar.gz "https://github.com/${{ github.repository }}/releases/download/${{ inputs.site_tag }}/site-data.tar.gz"
+          tar -xzf /tmp/site-data.tar.gz -C _site/data
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
