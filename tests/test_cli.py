@@ -143,8 +143,9 @@ def test_main_pack(tmp_path, monkeypatch):
 def test_main_tile_details(tmp_path, monkeypatch):
     """main() for tile-details delegates correctly and returns 0."""
 
-    def fake_tile_details(tile, dem_index, zabaged, protected, screen_dir):
+    def fake_tile_details(tile, dem_index, zabaged, protected, screen_dir, region=None, radius_m=None):
         fake_tile_details._tile = tile
+        fake_tile_details._extra = (region, radius_m)
         fake_tile_details._screen_dir = screen_dir
         return {"spots": 1}
 
@@ -160,3 +161,4 @@ def test_main_tile_details(tmp_path, monkeypatch):
     assert out == {"spots": 1}
     assert fake_tile_details._tile == "20k_1_2"
     assert fake_tile_details._screen_dir == tmp_path / "tiles" / "20k_1_2"
+    assert fake_tile_details._extra == (None, 10000)

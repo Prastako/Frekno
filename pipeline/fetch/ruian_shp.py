@@ -21,9 +21,14 @@ def vsizip(zip_path: pathlib.Path | str, inner: str) -> str:
 def read_region(stat_zip: pathlib.Path | str, vusc_kod: int | str) -> shapely.geometry.base.BaseGeometry:
     """Read region polygon from a state SHP ZIP.
 
-    Returns the geometry of the row whose KOD equals *vusc_kod*.
+    Returns the geometry of the row whose KOD equals *vusc_kod*; KOD 0 returns the whole state (STATY_P).
     Raises ValueError if no row or more than one row matches.
     """
+    if int(vusc_kod) == 0:
+        state = pyogrio.read_dataframe(vsizip(stat_zip, "1/STATY_P.shp"), encoding="cp1250")
+        if len(state) != 1:
+            raise ValueError(f"Expected one state polygon, got {len(state)}")
+        return state.geometry.iloc[0]
     member = vsizip(stat_zip, "1/VUSC_P.shp")
     gdf = pyogrio.read_dataframe(member, encoding="cp1250")
 

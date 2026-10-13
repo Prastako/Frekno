@@ -243,7 +243,7 @@ def prep_dem_index(dmr_dir: str | Path, out_csv: str | Path) -> dict:
     Returns a summary dict with the number of indexed sheets.
     """
     dmr_dir = Path(dmr_dir)
-    zips = sorted(dmr_dir.glob("*.zip"))
+    zips = sorted(dmr_dir.glob("*.zip")) + sorted(dmr_dir.glob("*.tif"))
     rows = build_index(zips)
     write_index_csv(rows, out_csv)
     return {"sheets": len(rows)}

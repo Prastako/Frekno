@@ -93,3 +93,20 @@ class TestWriteBuildingsCsv:
         out = tmp_path / "nested" / "dir" / "buildings.csv"
         write_buildings_csv(rows[:1], out)
         assert out.exists()
+
+
+def test_read_region_whole_state(tmp_path):
+    import zipfile
+
+    import geopandas as gpd
+    from shapely.geometry import box
+
+    from pipeline.fetch.ruian_shp import read_region
+
+    d = tmp_path / "1"
+    d.mkdir()
+    gpd.GeoDataFrame({"KOD": [1]}, geometry=[box(0, 0, 10, 10)], crs="EPSG:5514").to_file(d / "STATY_P.shp")
+    with zipfile.ZipFile(tmp_path / "1.zip", "w") as z:
+        for f in d.iterdir():
+            z.write(f, f"1/{f.name}")
+    assert read_region(tmp_path / "1.zip", 0).area == 100
