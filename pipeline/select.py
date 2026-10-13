@@ -2,7 +2,7 @@
 
 import numpy as np
 
-TYPES = ("home", "cottage", "facility")
+TYPES = ("home", "cottage", "campsite", "care", "recreation")
 
 
 def bearing_deg(cx, cy, rx, ry):
