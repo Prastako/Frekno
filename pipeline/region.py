@@ -216,12 +216,19 @@ def prep_receptors(
 def load_receptors(receptors_csv: str | Path) -> dict[str, np.ndarray]:
     """Load receptor CSV into numpy arrays.
 
+    If facilities.csv exists in the same folder, its rows (receptor type
+    "facility", from pipeline/facilities.py) are appended after the rows of
+    *receptors_csv*.
+
     Returns dict with keys: x, y, type, id.
     """
-    df = pd.read_csv(
-        receptors_csv,
-        dtype={"building_id": str, "receptor_type": str},
-    )
+    dtypes = {"building_id": str, "receptor_type": str}
+    df = pd.read_csv(receptors_csv, dtype=dtypes)
+    fac_csv = Path(receptors_csv).with_name("facilities.csv")
+    if fac_csv.exists():
+        fac = pd.read_csv(fac_csv, dtype=dtypes)
+        if len(fac):
+            df = pd.concat([df, fac], ignore_index=True)
     return {
         "x": df["x"].values.astype(np.float64),
         "y": df["y"].values.astype(np.float64),
