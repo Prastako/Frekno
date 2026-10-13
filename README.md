@@ -53,11 +53,13 @@ Data paths for the pipeline runs are set in `config/spike.toml`. To preview the 
 
 ## National run
 
-Three GitHub Actions workflows, each started by hand:
+Three GitHub Actions workflows:
 
 - `national inputs` downloads RÚIAN, ZABAGED, DMR 4G and the AOPK protected areas, prepares receptors, facilities, a smaller ZABAGED file and 10 m terrain per tile (`pipeline/national.py`), and publishes them as a prerelease `inputs-<date>`.
 - `national tiles` takes that tag, screens the tiles in groups, adds the spot details, packs the website data and publishes `site-<date>` with `site-data.tar.gz`.
-- `site` publishes `web/` with a `site-<date>` release on GitHub Pages.
+- `site` publishes `web/` with a `site-<date>` release (the newest when no tag is given) on GitHub Pages, together with the public transport stops for the coming weekend (`pipeline/transit.py`, from the JrUtil GTFS files). It runs by hand and every Thursday.
+
+`national inputs` and `national tiles` are started by hand.
 
 Sites within 10 km of the state border are left out of the website data and the site says so: homes abroad are not in the receptor data, so estimates there are imprecise. The four military training areas (Boletice, Březina, Hradiště, Libavá) are left out as well, because access to them is restricted by the Ministry of Defence. The same steps run locally with `python -m pipeline.national` and `python -m pipeline.cli`.
 
@@ -65,5 +67,6 @@ Sites within 10 km of the state border are left out of the website data and the 
 
 - Code: MIT licence (`LICENSE`).
 - Input data: ČÚZK (RÚIAN, ZABAGED, DMR 4G) and AOPK ČR (protected areas), CC BY 4.0. Data published by this project is also CC BY 4.0, with attribution to ČÚZK and AOPK ČR. Base maps on the website: © ČÚZK.
+- Public transport: [JrUtil](https://data.jr.ggu.cz/), timetables from CIS JŘ. Stop positions: OpenStreetMap contributors (ODbL); open data of Ostrava (datový podklad © Statutární město Ostrava), Most and the Liberec Region (CC BY-SA 4.0); open data of the Moravian-Silesian Region, Brno and PID (CC BY 4.0); open data of the South Bohemian Region (CC0); further sources collected in jrunify-ext-geodata. The website's stops file (`data/stops.json`) is kept apart from the CC BY 4.0 data and is shared under the terms of these sources (ODbL 1.0 and CC BY-SA 4.0).
 - The website loads MapLibre GL JS (BSD-3-Clause) from unpkg.
 - NoiseModelling (GPL v3) is used only as a separate program for comparison runs and is not part of this repository.
