@@ -2,7 +2,7 @@
 import { loadTile, slots, spot } from "./frk.js";
 import { CLASSES, layerLevels, makeContext, rank, score, sourceSpectrum, tolerated } from "./model.js";
 import { applyStatic, dir, lang, num, setLang, t } from "./i18n.js";
-import { SCORE_COLORS, createMap, setArea, setBasemap, setSelected, setSpots, setTiles, startDraw, viewBbox } from "./map.js";
+import { SCORE_COLORS, createMap, setBasemap, setSelected, setSpots, setTiles, viewBbox } from "./map.js";
 
 const DATA = "data/";
 const MAX_VIEW_TILES = 24, MAX_LIST = 100, MAX_MAP = 20000, CACHE_TILES = 40, PARALLEL = 6;
@@ -14,17 +14,17 @@ const LAYER_KEYS = ["home", "cottage", "campsite", "care", "recreation"];
 const REF_RIG = { cls: "medium", character: "very_bass_heavy" }; // the screening's reference rig behind ref_min_dba
 const DEFAULTS = { cls: "medium", character: "very_bass_heavy", level: 99, distance: 20, cardioid: false, tier: "night45", goal: 40,
   perLayer: false, lt: [40, 40, 40, 40, 40], layers: [1, 1, 1, 1, 1], sites: [0, 1, 2], flat: 0, access: "any",
-  protect: "flag", forestLaw: false, area: "view", rect: null, view: null, base: "night" };
+  protect: "flag", forestLaw: false, area: "view", view: null, base: "night" };
 const CHOICES = { cls: ["small", "medium", "large", "custom"], character: ["balanced", "bass_heavy", "very_bass_heavy"],
   tier: ["inaudible", "cz35", "night45", "custom"], access: Object.keys(ACCESS), protect: Object.keys(PROTECT),
-  area: ["view", "rect", "all"], base: ["night", "topo", "orto"], flat: [0, 2000, 5000, 10000, 20000] };
+  area: ["view", "all"], base: ["night", "topo", "orto"], flat: [0, 2000, 5000, 10000, 20000] };
 
 const $ = (s) => document.querySelector(s);
 const form = $("#controls");
 const field = (n) => form.elements.namedItem(n);
 const state = readHash();
 const cache = new Map();
-let index = null, api = null, results = [], metaById = new Map(), gen = 0, drawing = false, selected = null, prot = null, timer = 0;
+let index = null, api = null, results = [], metaById = new Map(), gen = 0, selected = null, prot = null, timer = 0;
 let status = ["", {}], nearBorder = false, nearMilitary = false;
 
 function readHash() {
@@ -40,7 +40,6 @@ function readHash() {
   for (const [k, list] of Object.entries(CHOICES)) if (!list.includes(s[k])) s[k] = DEFAULTS[k];
   for (const k of ["layers", "lt"]) if (s[k].length !== 5 || !s[k].every(Number.isFinite)) s[k] = DEFAULTS[k].slice();
   s.sites = s.sites.filter((v) => [0, 1, 2].includes(v));
-  if (s.rect && (s.rect.length !== 4 || !s.rect.every(Number.isFinite))) s.rect = null;
   if (s.view && (s.view.length !== 3 || !s.view.every(Number.isFinite))) s.view = null;
   return s;
 }
@@ -88,7 +87,7 @@ function showModes() {
   document.querySelectorAll("[data-base]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.base === state.base)));
   document.querySelectorAll("[data-lang]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === lang())));
   const mb = index ? index.tiles.reduce((a, m) => a + m.bytes, 0) / 1e6 : 0;
-  $("#area-note").textContent = drawing ? t("draw_hint") : state.area === "all" ? t("all_size", { mb: num(mb) }) : "";
+  $("#area-note").textContent = state.area === "all" ? t("all_size", { mb: num(mb) }) : "";
 }
 
 const opts = () => ({
@@ -157,14 +156,12 @@ async function search() {
   showModes();
   writeHash();
   overview();
-  let bbox = state.area === "view" ? viewBbox(api.map) : state.area === "rect" ? state.rect : null;
-  setArea(api.map, state.area === "rect" ? state.rect : null);
+  const bbox = state.area === "view" ? viewBbox(api.map) : null;
   const metas = bbox ? index.tiles.filter((m) => intersects(m.bbox, bbox)) : index.tiles;
   nearBorder = Boolean(bbox || state.area === "all") && metas.some((m) => m.border_dropped > 0);
   nearMilitary = Boolean(bbox || state.area === "all") && metas.some((m) => m.military_dropped > 0);
   noteBorder();
   const load = metas.filter((m) => m.spots > 0);
-  if (state.area === "rect" && !bbox) return show([], "draw_hint");
   if (state.area === "view" && load.length > MAX_VIEW_TILES) return show([], "zoom_hint");
   const ctx = makeContext(index, rig(), opts());
   const f = {
@@ -303,7 +300,7 @@ async function main() {
   setLanguage(saved ?? (/^(cs|sk)/.test(navigator.language || "") ? "cs" : "en"));
   fillForm();
   showModes();
-  api = createMap($("#map"), (k) => { if (!drawing) openPanel(k, false); });
+  api = createMap($("#map"), (k) => openPanel(k, false));
   if (state.view) api.map.jumpTo({ center: [state.view[0], state.view[1]], zoom: state.view[2] });
   try {
     const res = await fetch(`${DATA}index.json`);
@@ -327,17 +324,8 @@ async function main() {
     else writeHash();
   });
   document.querySelectorAll("[data-area]").forEach((b) => b.addEventListener("click", () => {
-    if (b.dataset.area !== "rect") {
-      state.area = b.dataset.area;
-      return schedule(0);
-    }
-    drawing = true;
-    showModes();
-    startDraw(api.map, (box) => {
-      drawing = false;
-      if (box) Object.assign(state, { area: "rect", rect: box.map((v) => Number(v.toFixed(4))) });
-      schedule(0);
-    });
+    state.area = b.dataset.area;
+    schedule(0);
   }));
   document.querySelectorAll("[data-base]").forEach((b) => b.addEventListener("click", () => {
     state.base = b.dataset.base;
@@ -347,7 +335,7 @@ async function main() {
   }));
   document.querySelectorAll("[data-lang]").forEach((b) => b.addEventListener("click", () => setLanguage(b.dataset.lang)));
   $("#about-open").addEventListener("click", () => $("#about").showModal());
-  window.addEventListener("keydown", (e) => { if (e.key === "Escape" && !drawing) { selected = null; closePanel(); } });
+  window.addEventListener("keydown", (e) => { if (e.key === "Escape") { selected = null; closePanel(); } });
   search();
 }
 
