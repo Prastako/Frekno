@@ -183,7 +183,8 @@ def screen_candidates(dem, transform, cand_x, cand_y,
         cy = float(cand_y[i])
 
         sel = select_receptors(cx, cy, rec_x, rec_y, rec_type,
-                               cfg["radius_m"], cfg["sector_deg"], cfg["rings_m"])
+                               cfg["radius_m"], cfg["sector_deg"], cfg["rings_m"],
+                               int(cfg.get("per_bin", 1)))
 
         cand_row = {"candidate_id": int(i), "x": cx, "y": cy}
 
