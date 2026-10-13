@@ -74,7 +74,7 @@ class TestPrepFacilities:
         assert stats["areas"] == 1
         assert stats["points"] == 8
         assert stats["campsite"] == 1
-        assert stats["hospital"] == 0
+        assert stats["recreation"] == 0
         assert stats["care"] == 0
 
     def test_csv_header(self, gpkg, tmp_path):
@@ -96,9 +96,29 @@ class TestPrepFacilities:
         assert df.iloc[0]["building_id"] == "zbg1_0"
 
     def test_csv_receptor_type(self, gpkg, tmp_path):
-        """Every row has receptor_type 'facility'."""
+        """Every row has receptor_type 'campsite'."""
         region = box(0, 0, 1000, 1000)
         out = tmp_path / "region" / "facilities.csv"
         prep_facilities(gpkg, region, 100.0, out)
         df = pd.read_csv(out)
-        assert (df["receptor_type"] == "facility").all()
+        assert (df["receptor_type"] == "campsite").all()
+
+    def test_multi_receptor_types(self, tmp_path):
+        """Areas with codes 313, 412, 413 yield receptor_types recreation, care, care."""
+        path = tmp_path / "test.gpkg"
+        gdf = geopandas.GeoDataFrame(
+            {"fid_zbg": [10, 20, 30], "typzast_k": ["313", "412", "413"]},
+            geometry=[box(0, 0, 100, 100), box(200, 0, 300, 100), box(400, 0, 500, 100)],
+            crs="EPSG:5514",
+        )
+        pyogrio.write_dataframe(gdf, path, layer="ArealUceloveZastavby", driver="GPKG")
+        region = box(0, 0, 1000, 1000)
+        out = tmp_path / "region" / "facilities.csv"
+        stats = prep_facilities(path, region, 100.0, out)
+        df = pd.read_csv(out)
+        types = df["receptor_type"].tolist()
+        assert "recreation" in types
+        assert "care" in types
+        assert stats["campsite"] == 0
+        assert stats["care"] == 2
+        assert stats["recreation"] == 1
