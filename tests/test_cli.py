@@ -115,3 +115,24 @@ def test_main_nm_tile_fail(tmp_path, monkeypatch):
     assert ret == 1
     assert fake_nm_tile._work_dir == tmp_path / "nm" / "20k_1_2_zabaged_50m"
     assert fake_nm_tile._res_m == 50.0
+
+
+def test_main_pack(tmp_path, monkeypatch):
+    """main() for pack delegates correctly and returns 0."""
+
+    def fake_pack_region(screen_dir, site_dir):
+        fake_pack_region._screen_dir = screen_dir
+        fake_pack_region._site_dir = site_dir
+        return {"tiles": 1}
+
+    monkeypatch.setattr(pipeline.cli, "pack_region", fake_pack_region)
+    captured = StringIO()
+    monkeypatch.setattr("sys.stdout", captured)
+
+    ret = pipeline.cli.main(["--out", str(tmp_path), "pack"])
+    assert ret == 0
+
+    out = json.loads(captured.getvalue().strip())
+    assert out == {"tiles": 1}
+    assert fake_pack_region._screen_dir == tmp_path / "tiles"
+    assert fake_pack_region._site_dir == tmp_path / "site"
