@@ -21,6 +21,8 @@
     "large": {"label": "Large", "level_dba": 99.0, "distance_m": 40.0}
   },
   "classes_note": "[assumed] typical playing level LAeq at a distance from the stack; DIN 15905-5 audience limit and IOA mix-position data, not measured at outdoor parties",
+  "cardioid": {"bands_hz": [31.5, 63], "rear_rejection_db": 10.0},
+  "cardioid_note": "[assumed] Subs crossed over below about 100 Hz; 10 dB rear rejection for those bands",
   "targets": {"night_reference_dba": 35.0, "guidance_laeq5min_db": 47.0},
   "targets_note": "35 dB(A): NV 272/2011 night limit, kept as a reference only. 47 dB: NRL 2016 guidance, clearly acceptable outdoors."
 }
