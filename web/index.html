@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frekno</title>
+<meta name="description" content="Kde hudba v noci nedolehne k domům. Where night-time music won't reach homes.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f1c24'/%3E%3Cpath d='M5 20c3-8 5-8 7 0s4 8 7 0 4-8 8-2' stroke='%238fe3f0' stroke-width='2.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="top">
+  <h1 class="mark">Frekno</h1>
+  <p class="tagline" data-i18n="tagline"></p>
+  <div class="top-actions">
+    <button type="button" id="about-open" class="ghost" data-i18n="about"></button>
+    <div class="seg" role="group" aria-label="Jazyk / Language">
+      <button type="button" data-lang="cs">CZ</button><button type="button" data-lang="en">EN</button>
+    </div>
+  </div>
+</header>
+<aside class="side">
+  <form id="controls" autocomplete="off">
+    <fieldset>
+      <legend data-i18n="rig"></legend>
+      <label class="row"><span data-i18n="cls"></span>
+        <select name="cls">
+          <option value="small" data-i18n="cls_small"></option>
+          <option value="medium" data-i18n="cls_medium"></option>
+          <option value="large" data-i18n="cls_large"></option>
+          <option value="custom" data-i18n="cls_custom"></option>
+        </select></label>
+      <div class="custom-rig">
+        <label class="row"><span data-i18n="custom_level"></span><input name="level" type="number" min="60" max="140" step="0.5"></label>
+        <label class="row"><span data-i18n="custom_distance"></span><input name="distance" type="number" min="1" max="200" step="1"></label>
+      </div>
+      <label class="row"><span data-i18n="character"></span>
+        <select name="character">
+          <option value="balanced" data-i18n="ch_balanced"></option>
+          <option value="bass_heavy" data-i18n="ch_bass_heavy"></option>
+          <option value="very_bass_heavy" data-i18n="ch_very_bass_heavy"></option>
+        </select></label>
+      <label class="check"><input type="checkbox" name="cardioid"><span data-i18n="cardioid"></span></label>
+      <p class="note" data-i18n="cardioid_note"></p>
+    </fieldset>
+    <fieldset>
+      <legend data-i18n="tier"></legend>
+      <label class="check"><input type="radio" name="tier" value="inaudible"><span data-i18n="tier_inaudible"></span></label>
+      <label class="check"><input type="radio" name="tier" value="cz35"><span data-i18n="tier_cz35"></span></label>
+      <label class="check"><input type="radio" name="tier" value="night45"><span data-i18n="tier_night45"></span></label>
+      <label class="check"><input type="radio" name="tier" value="custom"><span data-i18n="tier_custom"></span></label>
+      <div class="custom-tier">
+        <label class="row"><span>dB(A)</span><input name="goal" type="number" min="15" max="70" step="1"></label>
+        <label class="check"><input type="checkbox" name="perLayer"><span data-i18n="per_layer"></span></label>
+      </div>
+      <p class="note" id="tier-note"></p>
+    </fieldset>
+    <fieldset>
+      <legend data-i18n="receptors"></legend>
+      <label class="check layer"><input type="checkbox" name="layer" value="0"><span data-i18n="layer_home"></span><input class="lt" type="number" min="15" max="70" step="1" aria-label="dB(A)"></label>
+      <label class="check layer"><input type="checkbox" name="layer" value="1"><span data-i18n="layer_cottage"></span><input class="lt" type="number" min="15" max="70" step="1" aria-label="dB(A)"></label>
+      <label class="check layer"><input type="checkbox" name="layer" value="2"><span data-i18n="layer_campsite"></span><input class="lt" type="number" min="15" max="70" step="1" aria-label="dB(A)"></label>
+      <label class="check layer"><input type="checkbox" name="layer" value="3"><span data-i18n="layer_care"></span><input class="lt" type="number" min="15" max="70" step="1" aria-label="dB(A)"></label>
+      <label class="check layer"><input type="checkbox" name="layer" value="4"><span data-i18n="layer_recreation"></span><input class="lt" type="number" min="15" max="70" step="1" aria-label="dB(A)"></label>
+    </fieldset>
+    <fieldset>
+      <legend data-i18n="site"></legend>
+      <div class="inline">
+        <label class="check"><input type="checkbox" name="site" value="0"><span data-i18n="site_0"></span></label>
+        <label class="check"><input type="checkbox" name="site" value="1"><span data-i18n="site_1"></span></label>
+        <label class="check"><input type="checkbox" name="site" value="2"><span data-i18n="site_2"></span></label>
+      </div>
+      <label class="row"><span data-i18n="flat"></span>
+        <select name="flat">
+          <option value="0" data-i18n="flat_0"></option>
+          <option value="2000" data-i18n="flat_2000"></option>
+          <option value="5000" data-i18n="flat_5000"></option>
+          <option value="10000" data-i18n="flat_10000"></option>
+          <option value="20000" data-i18n="flat_20000"></option>
+        </select></label>
+      <label class="row"><span data-i18n="access"></span>
+        <select name="access">
+          <option value="any" data-i18n="access_any"></option>
+          <option value="track100" data-i18n="access_track100"></option>
+          <option value="track300" data-i18n="access_track300"></option>
+          <option value="road300" data-i18n="access_road300"></option>
+          <option value="road1000" data-i18n="access_road1000"></option>
+        </select></label>
+      <label class="row"><span data-i18n="protect"></span>
+        <select name="protect">
+          <option value="flag" data-i18n="protect_flag"></option>
+          <option value="strict" data-i18n="protect_strict"></option>
+          <option value="all" data-i18n="protect_all"></option>
+        </select></label>
+      <label class="check"><input type="checkbox" name="forestLaw"><span data-i18n="forest_law"></span></label>
+    </fieldset>
+    <fieldset>
+      <legend data-i18n="area"></legend>
+      <div class="seg wide" role="group">
+        <button type="button" data-area="view" data-i18n="area_view"></button>
+        <button type="button" data-area="rect" data-i18n="area_rect"></button>
+        <button type="button" data-area="all" data-i18n="area_all"></button>
+      </div>
+      <p class="note" id="area-note"></p>
+    </fieldset>
+  </form>
+  <section class="results" aria-live="polite">
+    <h2 data-i18n="results"></h2>
+    <p class="status" id="status"></p>
+    <ol id="list"></ol>
+  </section>
+  <p class="fine" data-i18n="uncalibrated"></p>
+</aside>
+<main class="stage">
+  <div id="map"></div>
+  <div class="seg basemaps" role="group">
+    <button type="button" data-base="night" data-i18n="base_night"></button>
+    <button type="button" data-base="topo" data-i18n="base_topo"></button>
+    <button type="button" data-base="orto" data-i18n="base_orto"></button>
+  </div>
+  <div class="legend" id="legend"></div>
+  <section class="panel" id="panel" hidden></section>
+</main>
+<dialog id="about">
+  <div id="about-body"></div>
+  <form method="dialog"><button data-i18n="close"></button></form>
+</dialog>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
