@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
-import { parseTile } from "../js/frk.js";
+import { parseTile, spot } from "../js/frk.js";
 import { evaluate, gainDb, layerLevels, makeContext, passes, rank, score, sourceSpectrum, tolerated } from "../js/model.js";
 
 const dir = new URL("./fixtures/", import.meta.url);
@@ -78,4 +78,16 @@ test("layer levels at the chosen facing give the same margin", () => {
       assert.ok(near(m, e.margin), `${c.rig.cls} spot ${i}`);
     });
   }
+});
+
+test("near filter gets the spot's S-JTSK position and is checked last", () => {
+  for (let i = 0; i < t.count; i++) {
+    if (!passes(t, i, ALL)) continue;
+    const s = spot(t, i);
+    let got = null;
+    assert.equal(passes(t, i, { ...ALL, near: (x, y) => { got = [x, y]; return false; } }), false);
+    assert.deepEqual(got, [s.x, s.y]);
+    assert.equal(passes(t, i, { ...ALL, near: () => true }), true);
+  }
+  assert.equal(passes(t, 0, { ...ALL, sites: [], near: () => { throw new Error("near called"); } }), false);
 });

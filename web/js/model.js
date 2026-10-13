@@ -96,16 +96,19 @@ export function evaluate(t, i, ctx) {
 // Score 1..10 in 2.5 dB steps; 6 and above meet the target.
 export const score = (margin) => (margin === Infinity ? 10 : Math.min(10, Math.max(1, 6 + Math.floor(margin / 2.5))));
 
-// Filter f: {sites: [codes], minFlat, access: null | {kind: "track" | "road", max}, excludeProt (bits), forestLaw, bbox: null | [w, s, e, n]}.
+// Filter f: {sites: [codes], minFlat, access: null | {kind: "track" | "road", max}, excludeProt (bits), forestLaw, bbox: null | [w, s, e, n],
+// near: optional (x, y) => bool on the spot's S-JTSK position, checked last}.
 export function passes(t, i, f) {
   const o = spotBase(i), u8 = t.u8, dv = t.dv;
   if (!f.sites.includes(u8[o + 16]) || dv.getUint16(o + 20, true) < f.minFlat) return false;
   if (f.access && dv.getUint16(o + (f.access.kind === "track" ? 26 : 24), true) > f.access.max) return false;
   if (u8[o + 19] & f.excludeProt || (f.forestLaw && dv.getUint16(o + 22, true) <= 50)) return false;
   const b = f.bbox;
-  if (!b) return true;
-  const lon = dv.getFloat32(o, true), lat = dv.getFloat32(o + 4, true);
-  return lon >= b[0] && lon <= b[2] && lat >= b[1] && lat <= b[3];
+  if (b) {
+    const lon = dv.getFloat32(o, true), lat = dv.getFloat32(o + 4, true);
+    if (lon < b[0] || lon > b[2] || lat < b[1] || lat > b[3]) return false;
+  }
+  return !f.near || f.near(dv.getInt32(o + 8, true), dv.getInt32(o + 12, true));
 }
 
 // Spots of tiles [{id, t}] that pass f, best margin first (ties keep tile and spot order), at most limit.
