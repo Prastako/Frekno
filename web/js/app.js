@@ -5,7 +5,7 @@ import { applyStatic, dir, lang, num, setLang, t } from "./i18n.js";
 import { SCORE_COLORS, createMap, setArea, setBasemap, setSelected, setSpots, setTiles, startDraw, viewBbox } from "./map.js";
 
 const DATA = "data/";
-const MAX_VIEW_TILES = 24, MAX_LIST = 100, MAX_MAP = 20000, CACHE_TILES = 80, PARALLEL = 6;
+const MAX_VIEW_TILES = 24, MAX_LIST = 100, MAX_MAP = 20000, CACHE_TILES = 40, PARALLEL = 6;
 const TIERS = { inaudible: 27, cz35: 35, night45: 45 };
 const PROTECT = { flag: 0, strict: 5, all: 127 };
 const ACCESS = { any: null, track100: { kind: "track", max: 100 }, track300: { kind: "track", max: 300 },
@@ -24,7 +24,7 @@ const form = $("#controls");
 const field = (n) => form.elements.namedItem(n);
 const state = readHash();
 const cache = new Map();
-let index = null, api = null, results = [], byId = new Map(), gen = 0, drawing = false, selected = null, prot = null, timer = 0;
+let index = null, api = null, results = [], metaById = new Map(), gen = 0, drawing = false, selected = null, prot = null, timer = 0;
 let status = ["", {}];
 
 function readHash() {
@@ -108,18 +108,27 @@ function getTile(meta) {
   return p;
 }
 
-async function loadAll(metas, progress) {
-  const out = [];
+// Load the tiles of *metas* a few at a time and hand each to onTile(meta, tile) as soon as it arrives.
+async function eachTile(metas, onTile, progress) {
   let next = 0, done = 0;
   const worker = async () => {
     while (next < metas.length) {
       const m = metas[next++];
-      out.push({ id: m.id, t: await getTile(m) });
+      onTile(m, await getTile(m));
       progress(++done, metas.length);
     }
   };
   await Promise.all(Array.from({ length: Math.min(PARALLEL, metas.length) }, worker));
-  return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+// Best margin first; ties in tile and spot order.
+const byMargin = (a, b) => b.margin - a.margin || (a.tile < b.tile ? -1 : a.tile > b.tile ? 1 : a.i - b.i);
+
+// A ranked spot with what the list and the map need, so the tile itself can leave memory.
+function keep(id, tile, r) {
+  const s = spot(tile, r.i);
+  const s0 = r.layer >= 0 ? slots(tile, r.i, r.layer)[0] : { dist: 0, brg: 0 };
+  return { ...r, tile: id, lon: s.lon, lat: s.lat, prot: s.prot, d0: s0.dist, b0: s0.brg };
 }
 
 function schedule(ms = 120) {
@@ -147,31 +156,35 @@ async function search() {
   const metas = bbox ? index.tiles.filter((m) => intersects(m.bbox, bbox)) : index.tiles;
   if (state.area === "rect" && !bbox) return show([], "draw_hint");
   if (state.area === "view" && metas.length > MAX_VIEW_TILES) return show([], "zoom_hint");
-  let tiles;
+  const ctx = makeContext(index, rig(), opts());
+  const f = {
+    sites: state.sites, minFlat: state.flat, access: ACCESS[state.access] ?? null,
+    excludeProt: (PROTECT[state.protect] ?? 0) | (state.border ? index.border_bit ?? 128 : 0), forestLaw: state.forestLaw,
+    bbox: state.area === "all" ? null : bbox,
+  };
+  let best = [], total = 0;
   try {
-    tiles = await loadAll(metas, (d, n) => { if (my === gen && d < n) $("#status").textContent = t("loading", { done: d, total: n }); });
+    await eachTile(metas, (m, tile) => {
+      if (my !== gen) return;
+      const part = rank([{ id: m.id, t: tile }], ctx, f).map((r) => keep(m.id, tile, r));
+      total += part.length;
+      best = best.concat(part);
+      if (best.length > 2 * MAX_MAP) best = best.sort(byMargin).slice(0, MAX_MAP);
+    }, (d, n) => { if (my === gen && d < n) $("#status").textContent = t("loading", { done: d, total: n }); });
   } catch (e) {
     if (my === gen) show([], "load_error", { msg: e.message });
     return;
   }
   if (my !== gen) return;
-  byId = new Map(tiles.map((x) => [x.id, x.t]));
-  const all = rank(tiles, makeContext(index, rig(), opts()), {
-    sites: state.sites, minFlat: state.flat, access: ACCESS[state.access] ?? null,
-    excludeProt: (PROTECT[state.protect] ?? 0) | (state.border ? index.border_bit ?? 128 : 0), forestLaw: state.forestLaw,
-    bbox: state.area === "all" ? null : bbox,
-  });
-  show(all, all.length ? "count" : "empty", { n: num(all.length, 0), shown: Math.min(all.length, MAX_LIST) });
+  best = best.sort(byMargin).slice(0, MAX_MAP);
+  show(best, total ? "count" : "empty", { n: num(total, 0), shown: Math.min(total, MAX_LIST) });
 }
 
 function show(all, key, vars = {}) {
   results = all;
   status = [key, vars];
   $("#status").textContent = key ? t(key, vars) : "";
-  setSpots(api.map, all.slice(0, MAX_MAP).map((r, k) => {
-    const s = spot(byId.get(r.tile), r.i);
-    return { lon: s.lon, lat: s.lat, score: r.score, key: k };
-  }));
+  setSpots(api.map, all.slice(0, MAX_MAP).map((r, k) => ({ lon: r.lon, lat: r.lat, score: r.score, key: k })));
   $("#list").replaceChildren(...all.slice(0, MAX_LIST).map(listItem));
   const k = selected ? all.findIndex((r) => r.tile === selected.tile && r.i === selected.i) : -1;
   if (k >= 0) openPanel(k, false);
@@ -186,9 +199,8 @@ const badge = (sc) => `<span class="score" style="--c:${SCORE_COLORS[sc - 1]};--
 
 function loudestText(r) {
   if (r.layer < 0) return "";
-  const s0 = slots(byId.get(r.tile), r.i, r.layer)[0];
-  const text = t("at_loudest", { l: num(r.level), layer: t(`layer_${LAYER_KEYS[r.layer]}`).toLowerCase(), d: km(s0.dist), dir: dir(deg(s0.brg)) });
-  return spot(byId.get(r.tile), r.i).prot & 128 ? `${text}; ${t("border_short")}` : text;
+  const text = t("at_loudest", { l: num(r.level), layer: t(`layer_${LAYER_KEYS[r.layer]}`).toLowerCase(), d: km(r.d0), dir: dir(deg(r.b0)) });
+  return r.prot & 128 ? `${text}; ${t("border_short")}` : text;
 }
 
 function listItem(r, k) {
@@ -214,7 +226,9 @@ async function openPanel(k, fly) {
   const r = results[k];
   if (!r) return;
   selected = { tile: r.tile, i: r.i };
-  const tile = byId.get(r.tile), s = spot(tile, r.i), o = opts();
+  const tile = await getTile(metaById.get(r.tile));
+  if (results[k] !== r) return;
+  const s = spot(tile, r.i), o = opts();
   setSelected(api.map, s);
   if (fly) api.map.flyTo({ center: [s.lon, s.lat], zoom: Math.max(api.map.getZoom(), 13) });
   const lv = layerLevels(tile, r.i, makeContext(index, rig(), o), r.facing);
@@ -285,6 +299,7 @@ async function main() {
     const res = await fetch(`${DATA}index.json`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     index = await res.json();
+    metaById = new Map(index.tiles.map((m) => [m.id, m]));
   } catch (e) {
     status = ["load_error", { msg: e.message }];
     $("#status").textContent = t(...status);
