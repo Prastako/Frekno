@@ -326,9 +326,9 @@ async function openPanel(k, fly) {
     <h3>${t("loudest")}</h3><ul>${rows}</ul>
     <h3>${t("site")}</h3><ul>${facts.map((f) => `<li>${f}</li>`).join("")}<li class="prot"></li></ul>
     <h3>${t("transit")}</h3><ul class="transit"><li>${t("stop_loading")}</li></ul>
-    <p class="links"><a href="https://nahlizenidokn.cuzk.gov.cz/MapaIdentifikace.aspx?l=KN&amp;x=${s.x}&amp;y=${s.y}" target="_blank" rel="noopener">${t("owner")}</a>
+    <p class="links">${cz ? `<a href="https://nahlizenidokn.cuzk.gov.cz/MapaIdentifikace.aspx?l=KN&amp;x=${s.x}&amp;y=${s.y}" target="_blank" rel="noopener">${t("owner")}</a>` : ""}
     <a href="https://mapy.cz/zakladni?source=coor&amp;id=${s.lon.toFixed(5)}%2C${s.lat.toFixed(5)}&amp;x=${s.lon.toFixed(5)}&amp;y=${s.lat.toFixed(5)}&amp;z=16" target="_blank" rel="noopener">${t("mapy")}</a></p>
-    <p class="note">${t("owner_note")}</p>
+    <p class="note">${t(cz ? "owner_note" : "owner_de")}</p>
     <p class="coords">${num(s.lat, 5)} N, ${num(s.lon, 5)} E</p>`;
   el.hidden = false;
   el.querySelector(".x").addEventListener("click", () => { selected = null; closePanel(); });
@@ -358,7 +358,7 @@ function setLanguage(code) {
   setLang(code);
   try { localStorage.setItem("frekno-lang", lang()); } catch { /* storage may be blocked */ }
   applyStatic(document);
-  $("#about-body").innerHTML = t("about_html");
+  $("#about-body").innerHTML = t("about_html") + t("about_de_html");
   legend();
   noteBorder();
   showModes();
@@ -378,24 +378,31 @@ async function main() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     index = await res.json();
     metaById = new Map(index.tiles.map((m) => [m.id, m]));
+    if (!index.tiles.some((m) => m.area === AREAS.de)) {
+      $('[data-area="de"]').hidden = true;
+      if (state.area === "de") state.area = "view";
+    }
   } catch (e) {
     status = ["load_error", { msg: e.message }];
     $("#status").textContent = t(...status);
     return;
   }
   await api.ready;
-  setBasemap(api.map, state.base);
+  if (!state.view && state.area !== "view") fitArea();
+  setBasemap(api.map, state.base, czView());
   form.addEventListener("input", () => { readForm(); schedule(); });
   form.addEventListener("change", () => { readForm(); schedule(); });
   form.addEventListener("submit", (e) => e.preventDefault());
   api.map.on("moveend", () => {
     const c = api.map.getCenter();
     state.view = [Number(c.lng.toFixed(4)), Number(c.lat.toFixed(4)), Number(api.map.getZoom().toFixed(2))];
+    setBasemap(api.map, state.base, czView());
     if (state.area === "view") schedule(250);
     else writeHash();
   });
   document.querySelectorAll("[data-area]").forEach((b) => b.addEventListener("click", () => {
     state.area = b.dataset.area;
+    if (state.area !== "view") fitArea();
     schedule(0);
   }));
   $("#legend").addEventListener("click", (e) => {
@@ -407,7 +414,7 @@ async function main() {
   });
   document.querySelectorAll("[data-base]").forEach((b) => b.addEventListener("click", () => {
     state.base = b.dataset.base;
-    setBasemap(api.map, state.base);
+    setBasemap(api.map, state.base, czView());
     showModes();
     writeHash();
   }));
