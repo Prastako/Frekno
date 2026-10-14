@@ -1,13 +1,16 @@
 name: site
 
-# Publishes the website (web/) with a site data release and this weekend's public transport stops on GitHub Pages.
-# Runs by hand and every Thursday, so the stops show the coming weekend.
+# Publishes the website (web/) with a site data release, the Leipzig area's site data and this weekend's public
+# transport stops on GitHub Pages. Runs by hand and every Thursday, so the stops show the coming weekend.
 
 on:
   workflow_dispatch:
     inputs:
       site_tag:
         description: Release with the website data (site-YYYYMMDD-HHMM); empty means the newest
+        required: false
+      de_tag:
+        description: Release with the Leipzig area data (site-de-leipzig-YYYYMMDD-HHMM); empty means the newest, none leaves it out
         required: false
   schedule:
     - cron: "17 3 * * 4"
@@ -39,13 +42,24 @@ jobs:
         run: |
           tag="${{ inputs.site_tag }}"
           if [ -z "$tag" ]; then
-            tag=$(gh api "repos/${{ github.repository }}/releases?per_page=50" --jq '[.[] | select(.tag_name | startswith("site-"))][0].tag_name')
+            tag=$(gh api "repos/${{ github.repository }}/releases?per_page=50" --jq '[.[] | select(.tag_name | test("^site-[0-9]"))][0].tag_name')
           fi
           echo "Site data: $tag" >> "$GITHUB_STEP_SUMMARY"
           mkdir -p _site/data
           cp -r web/index.html web/css web/js _site/
           curl -fsSL --retry 3 -o /tmp/site-data.tar.gz "https://github.com/${{ github.repository }}/releases/download/$tag/site-data.tar.gz"
           tar -xzf /tmp/site-data.tar.gz -C _site/data
+          detag="${{ inputs.de_tag }}"
+          if [ -z "$detag" ]; then
+            detag=$(gh api "repos/${{ github.repository }}/releases?per_page=50" --jq '[.[] | select(.tag_name | startswith("site-de-leipzig-"))][0].tag_name // empty')
+          fi
+          if [ -n "$detag" ] && [ "$detag" != "none" ]; then
+            echo "Leipzig area data: $detag" >> "$GITHUB_STEP_SUMMARY"
+            mkdir -p /tmp/site-de
+            curl -fsSL --retry 3 -o /tmp/site-de.tar.gz "https://github.com/${{ github.repository }}/releases/download/$detag/site-data.tar.gz"
+            tar -xzf /tmp/site-de.tar.gz -C /tmp/site-de
+            python -m pipeline.sites _site/data /tmp/site-de --area de-leipzig | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Public transport
         run: python -m pipeline.transit _site/data/stops.json --feeds-dir /tmp/transit | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-pages-artifact@v3

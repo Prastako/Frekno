@@ -12,6 +12,9 @@ on:
       group_size:
         description: Tiles per job
         default: "8"
+      tag_prefix:
+        description: Release tag prefix (site for Czechia, site-de-leipzig for the Leipzig area)
+        default: site
 
 permissions:
   contents: write
@@ -104,8 +107,8 @@ jobs:
         run: |
           python -m pipeline.national pack-index --site-dir /mnt/frekno/site
           tar -C /mnt/frekno/site -czf /mnt/frekno/site-data.tar.gz index.json protected.json tiles
-          tag="site-$(date -u +%Y%m%d-%H%M)"
+          tag="${{ inputs.tag_prefix }}-$(date -u +%Y%m%d-%H%M)"
           gh release create "$tag" --prerelease --title "$tag" \
-            --notes "Website data from ${{ inputs.inputs_tag }}, packed at ${GITHUB_SHA}. Data: ČÚZK and AOPK ČR, CC BY 4.0." \
+            --notes "Website data from ${{ inputs.inputs_tag }}, packed at ${GITHUB_SHA}. Data sources and licences: see the release notes of ${{ inputs.inputs_tag }}." \
             /mnt/frekno/site-data.tar.gz /mnt/frekno/site/index.json
           echo "Published $tag" >> "$GITHUB_STEP_SUMMARY"

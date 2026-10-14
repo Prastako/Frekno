@@ -1,0 +1,111 @@
+name: germany inputs
+
+# Downloads the open data for the German area around Leipzig (BKG, basemap.de, the states' building outlines and
+# terrain models, EEA), prepares it and publishes the inputs for a tile run as a prerelease (inputs-de-leipzig-...).
+# Run by hand, rarely. Then run "national tiles" with that release and the tag prefix site-de-leipzig.
+
+on:
+  workflow_dispatch:
+    inputs:
+      group_size:
+        description: Tiles per terrain job
+        default: "6"
+
+permissions:
+  contents: write
+
+env:
+  FREKNO_DATA: /mnt/frekno/data
+  FREKNO_OUT: /mnt/frekno/out
+  FREKNO_ZABAGED: /mnt/frekno/out/region/zabaged_slim.gpkg
+
+jobs:
+  vectors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    outputs:
+      groups: ${{ steps.groups.outputs.groups }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: "python -m pip install --only-binary=:all: -r requirements.txt"
+      - run: sudo mkdir -p /mnt/frekno && sudo chown "$USER" /mnt/frekno && df -h / /mnt
+      - name: Download
+        run: python -m pipeline.germany fetch || python -m pipeline.germany fetch
+      - name: Prepare
+        run: python -m pipeline.germany prep
+      - id: groups
+        run: echo "groups=$(python -m pipeline.national groups --size ${{ inputs.group_size }})" >> "$GITHUB_OUTPUT"
+      - name: Release files
+        run: |
+          python -m pipeline.germany inputs /mnt/frekno/inputs
+          gzip -1 /mnt/frekno/inputs/zabaged_slim.gpkg
+          ls -la /mnt/frekno/inputs && df -h /mnt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: area
+          path: |
+            /mnt/frekno/inputs/states.gpkg
+            /mnt/frekno/inputs/tiles.csv
+          retention-days: 3
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vectors
+          path: /mnt/frekno/inputs
+          retention-days: 3
+
+  terrain:
+    needs: vectors
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 4  # gentle on the states' download servers
+      matrix:
+        group: ${{ fromJSON(needs.vectors.outputs.groups) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: "python -m pip install --only-binary=:all: -r requirements.txt"
+      - run: sudo mkdir -p /mnt/frekno && sudo chown "$USER" /mnt/frekno
+      - uses: actions/download-artifact@v4
+        with:
+          name: area
+          path: /mnt/frekno/out/region
+      - name: Terrain
+        run: python -m pipeline.germany terrain ${{ matrix.group }} --dest /mnt/frekno/dem
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dem-${{ strategy.job-index }}
+          path: /mnt/frekno/dem
+          retention-days: 3
+
+  publish:
+    needs: terrain
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - run: sudo mkdir -p /mnt/frekno && sudo chown "$USER" /mnt/frekno
+      - uses: actions/download-artifact@v4
+        with:
+          name: vectors
+          path: /mnt/frekno/inputs
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dem-*
+          merge-multiple: true
+          path: /mnt/frekno/dem
+      - name: Publish
+        run: |
+          ls /mnt/frekno/dem | wc -l
+          tag="inputs-de-leipzig-$(date -u +%Y%m%d-%H%M)"
+          gh release create "$tag" --prerelease --title "$tag" \
+            --notes "Inputs for the tile run of the Leipzig area, prepared by pipeline/germany.py at ${GITHUB_SHA}. Data: BKG, basemap.de and the survey offices of Saxony, Saxony-Anhalt, Thuringia and Brandenburg (dl-de/by-2-0, Thuringia's building outlines CC BY 4.0), EEA (CC BY 4.0)."
+          gh release upload "$tag" /mnt/frekno/inputs/*.* /mnt/frekno/dem/*.tif
+          echo "Published $tag" >> "$GITHUB_STEP_SUMMARY"
