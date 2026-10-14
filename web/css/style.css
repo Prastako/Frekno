@@ -83,6 +83,9 @@ button[aria-pressed="true"] { color: var(--bg); background: var(--accent); borde
   color: var(--t, var(--bg)); background: var(--c); font-style: normal; font-weight: 700;
 }
 .legend span { margin: 0 4px; }
+.legend i { cursor: pointer; }
+.legend i.off { opacity: 0.25; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
 .panel {
   position: absolute; right: 10px; top: 52px; width: min(380px, calc(100% - 20px)); max-height: calc(100% - 100px);
