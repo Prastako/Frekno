@@ -70,19 +70,33 @@ def test_active_services(tmp_path):
 def test_build_stops(tmp_path):
     res = transit.build_stops(feeds(tmp_path), date(2026, 10, 13))
     assert res["nights"] == ["2026-10-16", "2026-10-17", "2026-10-18"]
-    assert (res["source"], res["built"], res["license"]) == ("JrUtil", "2026-10-13", transit.LICENSE)
+    assert (res["source"], res["built"], res["license"]) == ("JrUtil, DELFI", "2026-10-13", transit.LICENSE)
     x1, y1 = transit._TO_SJTSK.transform(15.1, 49.9)
     x2, y2 = transit._TO_SJTSK.transform(15.0, 49.8)
     assert res["stops"] == [[round(x1), round(y1), "Lhota", 210, 340, -1, 340],
                             [round(x2), round(y2), "Lhota,náves", 80, 310, 80, 310]]
 
 
+def test_feed_stops_keeps_the_box(tmp_path):
+    f1, _ = feeds(tmp_path)
+    assert sorted(transit.feed_stops(f1)["stop_id"]) == ["A", "B", "ST", "ST1"]
+    assert sorted(transit.feed_stops(f1, (14.9, 49.75, 15.05, 49.85))["stop_id"]) == ["A", "B"]
+    assert transit.feed_stops(f1, transit.DE_BBOX).empty
+
+
+def test_build_stops_with_boxes(tmp_path):
+    f1, f2 = feeds(tmp_path)
+    res = transit.build_stops([(f1, (14.9, 49.75, 15.05, 49.85)), (f2, transit.DE_BBOX)], date(2026, 10, 13))
+    assert [s[2:] for s in res["stops"]] == [["Lhota,náves", 80, 310, 80, 310]]
+
+
 def test_main_writes_the_stops_file(tmp_path, monkeypatch, capsys):
-    src = dict(zip(transit.FEEDS, feeds(tmp_path)))
+    f1, f2 = feeds(tmp_path)
+    src = dict(zip([f[1] for f in transit.FEEDS], [f1, f2, f2, f1]))
 
     def fake_download(url, dest, **kw):
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(src[url.rsplit("/", 1)[1]].read_bytes())
+        dest.write_bytes(src[dest.name].read_bytes())
 
     monkeypatch.setattr(transit, "download", fake_download)
     out = tmp_path / "site" / "stops.json"

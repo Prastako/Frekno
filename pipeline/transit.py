@@ -1,4 +1,5 @@
-"""Public transport for the website: stops with their night and morning departures at the weekend (JrUtil GTFS).
+"""Public transport for the website: stops with their night and morning departures at the weekend (JrUtil GTFS for
+Czechia, DELFI's GTFS from gtfs.de for the German area).
 
 Each stop gets, for the nights Friday to Saturday and Saturday to Sunday, its last departure between midnight
 and 04:00 and its first departure between 04:00 and noon. The website finds the nearest stop to a spot itself.
@@ -17,15 +18,23 @@ from pyproj import Transformer
 from pipeline.fetch.download import download
 
 JRUTIL_URL = "https://data.jr.ggu.cz/results/latest/"
-FEEDS = ["JDF_merged_GTFS.zip", "CZPTT_GTFS.zip"]
+GTFS_DE_URL = "https://download.gtfs.de/germany/{}_free/latest.zip"
 NIGHT_END = 240  # minutes after midnight: departures until 04:00 are night departures
 MORNING_END = 720  # the morning lasts until noon
 GROUP_M = 300  # stops with the same name in one 300 m cell are one stop on the website
 BBOX = (12.0, 48.5, 18.9, 51.1)  # lon/lat box around Czechia
+DE_BBOX = (10.8, 50.3, 14.0, 52.4)  # lon/lat box around the German area (100 km around Leipzig)
+FEEDS = [  # (download URL, file name, lon/lat box of the stops kept)
+    (JRUTIL_URL + "JDF_merged_GTFS.zip", "JDF_merged_GTFS.zip", BBOX),
+    (JRUTIL_URL + "CZPTT_GTFS.zip", "CZPTT_GTFS.zip", BBOX),
+    (GTFS_DE_URL.format("nv"), "de_nv_free.zip", DE_BBOX),
+    (GTFS_DE_URL.format("rv"), "de_rv_free.zip", DE_BBOX),
+]
 ATTRIBUTION = ("JrUtil (https://data.jr.ggu.cz/), timetables from CIS JŘ. Stop positions: OpenStreetMap contributors "
                "(ODbL); open data of Ostrava (datový podklad © Statutární město Ostrava), Most and the Liberec Region "
                "(CC BY-SA 4.0); open data of the Moravian-Silesian Region, Brno and PID (CC BY 4.0); open data of the "
-               "South Bohemian Region (CC0); further sources collected in jrunify-ext-geodata.")
+               "South Bohemian Region (CC0); further sources collected in jrunify-ext-geodata. German area: DELFI e.V. "
+               "timetables via gtfs.de (CC BY 4.0).")
 LICENSE = "Shared under the terms of its sources: ODbL 1.0 and CC BY-SA 4.0."
 _TO_SJTSK = Transformer.from_crs("EPSG:4326", "EPSG:5514", always_xy=True)
 _WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
@@ -66,11 +75,11 @@ def minutes(times: pd.Series) -> np.ndarray:
     return hm[0].astype(int).to_numpy() * 60 + hm[1].astype(int).to_numpy()
 
 
-def feed_departures(path, days: list[date], chunk: int = 1_000_000) -> pd.DataFrame:
+def feed_departures(path, days: list[date], chunk: int = 1_000_000, stops=None) -> pd.DataFrame:
     """Departures (stop_id, m = minutes after Friday 00:00) between midnight and noon on Saturday and Sunday.
 
     A departure is a stop time with a departure time, open for boarding (pickup_type not 1), that is not the last
-    stop of its trip.
+    stop of its trip. With *stops* (a set of stop ids), only departures from those stops.
     """
     with zipfile.ZipFile(path) as z:
         services = active_services(z, days)
@@ -88,6 +97,8 @@ def feed_departures(path, days: list[date], chunk: int = 1_000_000) -> pd.DataFr
                 seq = ch["stop_sequence"].astype(int)
                 last.append(seq.groupby(ch["trip_id"]).max())
                 ch = ch.assign(seq=seq)[(ch["pickup_type"] != "1") & (ch["departure_time"] != "")]
+                if stops is not None:
+                    ch = ch[ch["stop_id"].isin(stops)]
                 if ch.empty:
                     continue
                 ch = ch.assign(t=minutes(ch["departure_time"])).merge(runs, on="trip_id")
@@ -102,8 +113,9 @@ def feed_departures(path, days: list[date], chunk: int = 1_000_000) -> pd.DataFr
     return dep[["stop_id", "m"]].reset_index(drop=True)
 
 
-def feed_stops(path) -> pd.DataFrame:
-    """Stops of one GTFS zip with the name and position used on the website (a platform takes its station's)."""
+def feed_stops(path, bbox: tuple = BBOX) -> pd.DataFrame:
+    """Stops of one GTFS zip inside the lon/lat *bbox*, with the name and position used on the website (a platform
+    takes its station's)."""
     with zipfile.ZipFile(path) as z:
         s = _read(z, "stops.txt", usecols=["stop_id", "stop_name", "stop_lat", "stop_lon", "parent_station"])
     pos = s.set_index("stop_id")
@@ -111,17 +123,22 @@ def feed_stops(path) -> pd.DataFrame:
     out = pd.DataFrame({"stop_id": s["stop_id"], "name": pos.loc[parent, "stop_name"].to_numpy(),
                         "lon": pd.to_numeric(pos.loc[parent, "stop_lon"].to_numpy(), errors="coerce"),
                         "lat": pd.to_numeric(pos.loc[parent, "stop_lat"].to_numpy(), errors="coerce")})
-    lo0, la0, lo1, la1 = BBOX
+    lo0, la0, lo1, la1 = bbox
     return out[out["lon"].between(lo0, lo1) & out["lat"].between(la0, la1)].reset_index(drop=True)
 
 
 def build_stops(feeds: list, day: date) -> dict:
     """The website's stops file for the weekend of *day*: per stop x, y (EPSG:5514), name and, for each night,
-    the last departure after midnight and the first in the morning (minutes after midnight, -1 for none)."""
+    the last departure after midnight and the first in the morning (minutes after midnight, -1 for none).
+
+    *feeds* holds GTFS zip paths (stops inside BBOX are kept) or (path, lon/lat box) pairs.
+    """
     days = weekend(day)
     deps, stops = [], []
-    for k, path in enumerate(feeds):
-        d, s = feed_departures(path, days), feed_stops(path)
+    for k, item in enumerate(feeds):
+        path, bbox = item if isinstance(item, tuple) else (item, BBOX)
+        s = feed_stops(path, bbox)
+        d = feed_departures(path, days, stops=set(s["stop_id"]))
         deps.append(d.assign(stop_id=f"{k}:" + d["stop_id"]))
         stops.append(s.assign(stop_id=f"{k}:" + s["stop_id"]))
     dep = pd.concat(deps, ignore_index=True).merge(pd.concat(stops, ignore_index=True), on="stop_id")
@@ -135,7 +152,7 @@ def build_stops(feeds: list, day: date) -> dict:
             night, morning = m[(m >= 0) & (m < NIGHT_END)], m[(m >= NIGHT_END) & (m < MORNING_END)]
             vals += [int(night.max()) if len(night) else -1, int(morning.min()) if len(morning) else -1]
         rows.append([int(round(g["x"].mean())), int(round(g["y"].mean())), name, *vals])
-    return {"source": "JrUtil", "built": day.isoformat(), "nights": [d.isoformat() for d in days],
+    return {"source": "JrUtil, DELFI", "built": day.isoformat(), "nights": [d.isoformat() for d in days],
             "attribution": ATTRIBUTION, "license": LICENSE, "stops": rows}
 
 
@@ -146,10 +163,10 @@ def main(argv=None) -> int:
     parser.add_argument("--day", default=None, help="build day YYYY-MM-DD (default: today)")
     args = parser.parse_args(argv)
     feeds = []
-    for name in FEEDS:
+    for url, name, bbox in FEEDS:
         path = Path(args.feeds_dir) / name
-        download(JRUTIL_URL + name, path, timeout=600)
-        feeds.append(path)
+        download(url, path, timeout=900)
+        feeds.append((path, bbox))
     day = date.fromisoformat(args.day) if args.day else date.today()
     res = build_stops(feeds, day)
     out = Path(args.out)
