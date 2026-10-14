@@ -313,7 +313,7 @@ async function openPanel(k, fly) {
     t("slope", { slope: s.slope === 255 ? t("unknown") : s.slope, flat: num(s.flat / 10000) }),
     t("dist", { road: meters(s.roadM), track: meters(s.trackM), forest: meters(s.forestM) }),
   ];
-  if (s.forestM <= 50) facts.push(t("forest_flag"));
+  if (cz && s.forestM <= 50) facts.push(t("forest_flag")); // Czech forest law only
   const meter = Array.from({ length: 10 }, (_, j) => `<i class="${j < r.score ? "on" : ""}${j === 5 ? " goal" : ""}"></i>`).join("");
   const el = $("#panel");
   el.innerHTML = `<button type="button" class="x" aria-label="${t("close")}">×</button>

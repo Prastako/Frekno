@@ -132,3 +132,21 @@ def test_http_file_reads_a_zip():
 def test_crs_xy_round_trip():
     x, y = sjtsk_xy(317000.0, 5691000.0, UTM33)
     assert crs_xy(x, y, UTM33) == pytest.approx((317000.0, 5691000.0), abs=0.01)
+
+
+def test_retry_tries_again_on_network_errors(monkeypatch):
+    monkeypatch.setattr(dt.time, "sleep", lambda s: None)
+    calls = []
+
+    def flaky():
+        calls.append(1)
+        if len(calls) < 3:
+            raise dt.requests.ConnectionError("down")
+        return "ok"
+
+    def down():
+        raise dt.requests.ConnectionError("down")
+
+    assert dt.retry(flaky) == "ok" and len(calls) == 3
+    with pytest.raises(dt.requests.ConnectionError):
+        dt.retry(down, attempts=2)

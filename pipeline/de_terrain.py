@@ -42,7 +42,8 @@ class HttpFile:
 
     def __init__(self, url: str, session=None):
         self.url, self.pos, self.s = url, 0, session or requests.Session()
-        self.size = int(self.s.head(url, timeout=60, allow_redirects=True).headers["Content-Length"])
+        head = retry(lambda: self.s.head(url, timeout=120, allow_redirects=True))
+        self.size = int(head.headers["Content-Length"])
 
     def seekable(self) -> bool:
         return True
@@ -71,6 +72,17 @@ class HttpFile:
                 time.sleep(2 ** attempt)
         self.pos += len(r.content)
         return r.content
+
+
+def retry(call, attempts: int = 4):
+    """call() with up to *attempts* tries on network errors, waiting 1, 2, 4 s in between."""
+    for attempt in range(attempts):
+        try:
+            return call()
+        except requests.RequestException:
+            if attempt == attempts - 1:
+                raise
+            time.sleep(2 ** attempt)
 
 
 def block_mean(a: np.ndarray, k: int) -> np.ndarray:
