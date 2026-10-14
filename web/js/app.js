@@ -2,7 +2,7 @@
 import { loadTile, slots, spot } from "./frk.js";
 import { CLASSES, layerLevels, makeContext, rank, score, sourceSpectrum, tolerated } from "./model.js";
 import { applyStatic, dir, lang, num, setLang, t } from "./i18n.js";
-import { SCORE_COLORS, createMap, setBasemap, setSelected, setSpots, setTiles, viewBbox } from "./map.js";
+import { SCORE_COLORS, createMap, inCzechia, setBasemap, setSelected, setSpots, setTiles, viewBbox } from "./map.js";
 import { clock, hasStop, indexStops, nearestStop } from "./transit.js";
 
 const DATA = "data/";
@@ -14,13 +14,14 @@ const ACCESS = { any: null, track100: { kind: "track", max: 100 }, track300: { k
 const TRANSIT = { any: null, stop1000: { max: 1000, night: false }, stop2000: { max: 2000, night: false },
   stop5000: { max: 5000, night: false }, night2000: { max: 2000, night: true }, night5000: { max: 5000, night: true } };
 const LAYER_KEYS = ["home", "cottage", "campsite", "care", "recreation"];
+const AREAS = { all: "cz", de: "de-leipzig" }; // area button -> the "area" of its tiles in index.json
 const REF_RIG = { cls: "medium", character: "very_bass_heavy" }; // the screening's reference rig behind ref_min_dba
 const DEFAULTS = { cls: "medium", character: "very_bass_heavy", level: 99, distance: 20, cardioid: false, tier: "night45", goal: 40,
   perLayer: false, lt: [40, 40, 40, 40, 40], layers: [1, 1, 0, 0, 0], sites: [0, 1, 2], flat: 0, access: "any", transit: "any",
   protect: "flag", forestLaw: false, smin: 1, smax: 10, area: "view", view: null, base: "night" };
 const CHOICES = { cls: ["small", "medium", "large", "custom"], character: ["balanced", "bass_heavy", "very_bass_heavy"],
   tier: ["inaudible", "cz35", "night45", "custom"], access: Object.keys(ACCESS), transit: Object.keys(TRANSIT), protect: Object.keys(PROTECT),
-  area: ["view", "all"], base: ["night", "topo", "orto"], flat: [0, 2000, 5000, 10000, 20000] };
+  area: ["view", "all", "de"], base: ["night", "topo", "orto"], flat: [0, 2000, 5000, 10000, 20000] };
 
 const $ = (s) => document.querySelector(s);
 const form = $("#controls");
@@ -95,8 +96,20 @@ function showModes() {
   legend();
   document.querySelectorAll("[data-base]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.base === state.base)));
   document.querySelectorAll("[data-lang]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === lang())));
-  const mb = index ? index.tiles.reduce((a, m) => a + m.bytes, 0) / 1e6 : 0;
-  $("#area-note").textContent = state.area === "all" ? t("all_size", { mb: num(mb) }) : "";
+  const mb = index && state.area !== "view" ? areaTiles().reduce((a, m) => a + m.bytes, 0) / 1e6 : 0;
+  $("#area-note").textContent = state.area !== "view" ? t("all_size", { mb: num(mb) }) : "";
+}
+
+// Tiles of the chosen area button (all of Czechia or the Leipzig area).
+const areaTiles = () => index.tiles.filter((m) => (m.area ?? "cz") === AREAS[state.area]);
+const czView = () => { const c = api.map.getCenter(); return inCzechia(c.lng, c.lat); };
+
+// Show the chosen area: the Leipzig area always, all of Czechia when none of it is in view.
+function fitArea() {
+  const metas = areaTiles();
+  if (!metas.length || (state.area === "all" && metas.some((m) => intersects(m.bbox, viewBbox(api.map))))) return;
+  const b = metas.reduce((a, m) => [Math.min(a[0], m.bbox[0]), Math.min(a[1], m.bbox[1]), Math.max(a[2], m.bbox[2]), Math.max(a[3], m.bbox[3])], [180, 90, -180, -90]);
+  api.map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 20 });
 }
 
 const opts = () => ({
@@ -168,9 +181,9 @@ async function search() {
   writeHash();
   overview();
   const bbox = state.area === "view" ? viewBbox(api.map) : null;
-  const metas = bbox ? index.tiles.filter((m) => intersects(m.bbox, bbox)) : index.tiles;
-  nearBorder = Boolean(bbox || state.area === "all") && metas.some((m) => m.border_dropped > 0);
-  nearMilitary = Boolean(bbox || state.area === "all") && metas.some((m) => m.military_dropped > 0);
+  const metas = bbox ? index.tiles.filter((m) => intersects(m.bbox, bbox)) : areaTiles();
+  nearBorder = metas.some((m) => m.border_dropped > 0);
+  nearMilitary = metas.some((m) => m.military_dropped > 0);
   noteBorder();
   const load = metas.filter((m) => m.spots > 0);
   if (state.area === "view" && load.length > MAX_VIEW_TILES) return show([], "zoom_hint");
@@ -178,7 +191,7 @@ async function search() {
   const f = {
     sites: state.sites, minFlat: state.flat, access: ACCESS[state.access] ?? null,
     excludeProt: (PROTECT[state.protect] ?? 0) | (index.border_bit ?? 128), forestLaw: state.forestLaw,
-    bbox: state.area === "all" ? null : bbox,
+    bbox,
   };
   let best = [], total = 0;
   try {
@@ -243,7 +256,7 @@ const meters = (m) => (m >= 5000 ? "> 5 km" : m >= 1000 ? `${num(m / 1000)} km` 
 async function protectedNames(ids) {
   if (!prot) prot = fetch(DATA + index.protected_file).then((r) => r.json());
   const p = await prot;
-  return ids.map((j) => `${t(`cat_${p.sites[j][1]}`)} ${p.sites[j][2]}`).join(", ");
+  return ids.map((j) => (p.sites[j][0].startsWith("DE-") ? p.sites[j][2] : `${t(`cat_${p.sites[j][1]}`)} ${p.sites[j][2]}`)).join(", ");
 }
 
 function getStops() {
@@ -284,6 +297,7 @@ async function openPanel(k, fly) {
   const tile = await getTile(metaById.get(r.tile));
   if (results[k] !== r) return;
   const s = spot(tile, r.i), o = opts();
+  const cz = (metaById.get(r.tile)?.area ?? "cz") === "cz";
   setSelected(api.map, s);
   if (fly) api.map.flyTo({ center: [s.lon, s.lat], zoom: Math.max(api.map.getZoom(), 13) });
   const lv = layerLevels(tile, r.i, makeContext(index, rig(), o), r.facing);
