@@ -16,8 +16,8 @@ const TRANSIT = { any: null, stop1000: { max: 1000, night: false }, stop2000: { 
 const LAYER_KEYS = ["home", "cottage", "campsite", "care", "recreation"];
 const REF_RIG = { cls: "medium", character: "very_bass_heavy" }; // the screening's reference rig behind ref_min_dba
 const DEFAULTS = { cls: "medium", character: "very_bass_heavy", level: 99, distance: 20, cardioid: false, tier: "night45", goal: 40,
-  perLayer: false, lt: [40, 40, 40, 40, 40], layers: [1, 1, 1, 1, 1], sites: [0, 1, 2], flat: 0, access: "any", transit: "any",
-  protect: "flag", forestLaw: false, area: "view", view: null, base: "night" };
+  perLayer: false, lt: [40, 40, 40, 40, 40], layers: [1, 1, 0, 0, 0], sites: [0, 1, 2], flat: 0, access: "any", transit: "any",
+  protect: "flag", forestLaw: false, smin: 1, smax: 10, area: "view", view: null, base: "night" };
 const CHOICES = { cls: ["small", "medium", "large", "custom"], character: ["balanced", "bass_heavy", "very_bass_heavy"],
   tier: ["inaudible", "cz35", "night45", "custom"], access: Object.keys(ACCESS), transit: Object.keys(TRANSIT), protect: Object.keys(PROTECT),
   area: ["view", "all"], base: ["night", "topo", "orto"], flat: [0, 2000, 5000, 10000, 20000] };
@@ -43,6 +43,8 @@ function readHash() {
   for (const [k, list] of Object.entries(CHOICES)) if (!list.includes(s[k])) s[k] = DEFAULTS[k];
   for (const k of ["layers", "lt"]) if (s[k].length !== 5 || !s[k].every(Number.isFinite)) s[k] = DEFAULTS[k].slice();
   s.sites = s.sites.filter((v) => [0, 1, 2].includes(v));
+  s.smin = Math.min(10, Math.max(1, Math.round(s.smin)));
+  s.smax = Math.min(10, Math.max(s.smin, Math.round(s.smax)));
   if (s.view && (s.view.length !== 3 || !s.view.every(Number.isFinite))) s.view = null;
   return s;
 }
@@ -62,7 +64,7 @@ const clamp = (v, lo, hi, d) => (Number.isFinite(Number(v)) && v !== "" ? Math.m
 
 function fillForm() {
   for (const k of ["cls", "character", "access", "transit", "protect", "tier"]) field(k).value = state[k];
-  for (const k of ["level", "distance", "goal", "flat"]) field(k).value = String(state[k]);
+  for (const k of ["level", "distance", "goal", "flat", "smin", "smax"]) field(k).value = String(state[k]);
   for (const k of ["cardioid", "perLayer", "forestLaw"]) field(k).checked = state[k];
   form.querySelectorAll("[name=layer]").forEach((el, l) => { el.checked = Boolean(state.layers[l]); });
   form.querySelectorAll(".lt").forEach((el, l) => { el.value = String(state.lt[l]); });
@@ -75,6 +77,9 @@ function readForm() {
   state.distance = clamp(field("distance").value, 1, 200, 20);
   state.goal = clamp(field("goal").value, 15, 70, 40);
   state.flat = Number(field("flat").value);
+  state.smin = Number(field("smin").value);
+  state.smax = Math.max(state.smin, Number(field("smax").value));
+  field("smax").value = String(state.smax);
   for (const k of ["cardioid", "perLayer", "forestLaw"]) state[k] = field(k).checked;
   state.layers = [...form.querySelectorAll("[name=layer]")].map((el) => (el.checked ? 1 : 0));
   state.lt = [...form.querySelectorAll(".lt")].map((el) => clamp(el.value, 15, 70, 40));
@@ -87,6 +92,7 @@ function showModes() {
   form.dataset.perLayer = state.tier === "custom" && state.perLayer ? "1" : "0";
   $("#tier-note").textContent = t(`note_${state.tier}`);
   document.querySelectorAll("[data-area]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.area === state.area)));
+  legend();
   document.querySelectorAll("[data-base]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.base === state.base)));
   document.querySelectorAll("[data-lang]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === lang())));
   const mb = index ? index.tiles.reduce((a, m) => a + m.bytes, 0) / 1e6 : 0;
@@ -145,8 +151,10 @@ function overview() {
   const shift = level(sourceSpectrum(index, rig())) - level(sourceSpectrum(index, REF_RIG));
   const o = opts();
   const target = Math.min(...o.targets.filter((_, l) => o.layers[l]));
-  setTiles(api.map, index.tiles.map((m) => ({ bbox: m.bbox, outline: m.outline,
-    s: m.spots === 0 ? 0 : m.ref_min_dba === null ? 10 : score(target - m.ref_min_dba - shift) })));
+  setTiles(api.map, index.tiles.map((m) => {
+    const s = m.spots === 0 ? 0 : m.ref_min_dba === null ? 10 : score(target - m.ref_min_dba - shift);
+    return { bbox: m.bbox, outline: m.outline, s: s < state.smin ? 0 : s };
+  }));
 }
 
 // Sites near the state border are left out of the data; say so when the area touches them.
@@ -182,7 +190,7 @@ async function search() {
     if (my !== gen) return;
     await eachTile(load, (m, tile) => {
       if (my !== gen) return;
-      const part = rank([{ id: m.id, t: tile }], ctx, f).map((r) => keep(m.id, tile, r));
+      const part = rank([{ id: m.id, t: tile }], ctx, f).filter((r) => r.score >= state.smin && r.score <= state.smax).map((r) => keep(m.id, tile, r));
       total += part.length;
       best = best.concat(part);
       if (best.length > 2 * MAX_MAP) best = best.sort(byMargin).slice(0, MAX_MAP);
@@ -327,7 +335,9 @@ function closePanel() {
 }
 
 function legend() {
-  $("#legend").innerHTML = `<span>${t("legend_over")}</span>${SCORE_COLORS.map((c, j) => `<i style="--c:${c};--t:${ink(j + 1)}">${j + 1}</i>`).join("")}<span>${t("legend_meet")}</span>`;
+  const off = (sc) => (sc < state.smin || sc > state.smax ? ' class="off"' : "");
+  $("#legend").title = t("legend_click");
+  $("#legend").innerHTML = `<span>${t("legend_over")}</span>${SCORE_COLORS.map((c, j) => `<i${off(j + 1)} data-s="${j + 1}" style="--c:${c};--t:${ink(j + 1)}">${j + 1}</i>`).join("")}<span>${t("legend_meet")}</span>`;
 }
 
 function setLanguage(code) {
@@ -374,6 +384,13 @@ async function main() {
     state.area = b.dataset.area;
     schedule(0);
   }));
+  $("#legend").addEventListener("click", (e) => {
+    const k = Number(e.target.closest("[data-s]")?.dataset.s);
+    if (!k) return;
+    Object.assign(state, { smin: k === state.smin ? 1 : k, smax: 10 });
+    fillForm();
+    schedule(0);
+  });
   document.querySelectorAll("[data-base]").forEach((b) => b.addEventListener("click", () => {
     state.base = b.dataset.base;
     setBasemap(api.map, state.base);
